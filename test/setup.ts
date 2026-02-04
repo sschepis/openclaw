@@ -66,7 +66,7 @@ const createStubOutbound = (
   sendText: async ({ deps, to, text }) => {
     const send = pickSendFn(id, deps);
     if (send) {
-      const result = await send(to, text, {});
+      const result = await send(to, text, {} as any);
       return { channel: id, ...result };
     }
     return { channel: id, messageId: "test" };
@@ -74,7 +74,7 @@ const createStubOutbound = (
   sendMedia: async ({ deps, to, text, mediaUrl }) => {
     const send = pickSendFn(id, deps);
     if (send) {
-      const result = await send(to, text, { mediaUrl });
+      const result = await send(to, text, { mediaUrl } as any);
       return { channel: id, ...result };
     }
     return { channel: id, messageId: "test" };
@@ -87,46 +87,47 @@ const createStubPlugin = (params: {
   aliases?: string[];
   deliveryMode?: ChannelOutboundAdapter["deliveryMode"];
   preferSessionLookupForAnnounceTarget?: boolean;
-}): ChannelPlugin => ({
-  id: params.id,
-  meta: {
+}): ChannelPlugin =>
+  ({
     id: params.id,
-    label: params.label ?? String(params.id),
-    selectionLabel: params.label ?? String(params.id),
-    docsPath: `/channels/${params.id}`,
-    blurb: "test stub.",
-    aliases: params.aliases,
-    preferSessionLookupForAnnounceTarget: params.preferSessionLookupForAnnounceTarget,
-  },
-  capabilities: { chatTypes: ["direct", "group"] },
-  config: {
-    listAccountIds: (cfg: OpenClawConfig) => {
-      const channels = cfg.channels as Record<string, unknown> | undefined;
-      const entry = channels?.[params.id];
-      if (!entry || typeof entry !== "object") {
-        return [];
-      }
-      const accounts = (entry as { accounts?: Record<string, unknown> }).accounts;
-      const ids = accounts ? Object.keys(accounts).filter(Boolean) : [];
-      return ids.length > 0 ? ids : ["default"];
+    meta: {
+      id: params.id,
+      label: params.label ?? String(params.id),
+      selectionLabel: params.label ?? String(params.id),
+      docsPath: `/channels/${params.id}`,
+      blurb: "test stub.",
+      aliases: params.aliases,
+      preferSessionLookupForAnnounceTarget: params.preferSessionLookupForAnnounceTarget,
     },
-    resolveAccount: (cfg: OpenClawConfig, accountId: string) => {
-      const channels = cfg.channels as Record<string, unknown> | undefined;
-      const entry = channels?.[params.id];
-      if (!entry || typeof entry !== "object") {
-        return {};
-      }
-      const accounts = (entry as { accounts?: Record<string, unknown> }).accounts;
-      const match = accounts?.[accountId];
-      return (match && typeof match === "object") || typeof match === "string" ? match : entry;
+    capabilities: { chatTypes: ["direct", "group"] },
+    config: {
+      listAccountIds: (cfg: OpenClawConfig) => {
+        const channels = cfg.channels as Record<string, unknown> | undefined;
+        const entry = channels?.[params.id];
+        if (!entry || typeof entry !== "object") {
+          return [];
+        }
+        const accounts = (entry as { accounts?: Record<string, unknown> }).accounts;
+        const ids = accounts ? Object.keys(accounts).filter(Boolean) : [];
+        return ids.length > 0 ? ids : ["default"];
+      },
+      resolveAccount: (cfg: OpenClawConfig, accountId: string) => {
+        const channels = cfg.channels as Record<string, unknown> | undefined;
+        const entry = channels?.[params.id];
+        if (!entry || typeof entry !== "object") {
+          return {};
+        }
+        const accounts = (entry as { accounts?: Record<string, unknown> }).accounts;
+        const match = accounts?.[accountId];
+        return (match && typeof match === "object") || typeof match === "string" ? match : entry;
+      },
+      isConfigured: async (_account: any, cfg: OpenClawConfig) => {
+        const channels = cfg.channels as Record<string, unknown> | undefined;
+        return Boolean(channels?.[params.id]);
+      },
     },
-    isConfigured: async (_account, cfg: OpenClawConfig) => {
-      const channels = cfg.channels as Record<string, unknown> | undefined;
-      return Boolean(channels?.[params.id]);
-    },
-  },
-  outbound: createStubOutbound(params.id, params.deliveryMode),
-});
+    outbound: createStubOutbound(params.id, params.deliveryMode),
+  }) as any;
 
 const createDefaultRegistry = () =>
   createTestRegistry([

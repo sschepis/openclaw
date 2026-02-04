@@ -103,6 +103,11 @@ const CONFIG_SCHEMA = {
     },
     
     // Network
+    'ROOT_NODE_DOMAIN': {
+        type: 'string',
+        description: 'Domain for the root node of the Aleph Network',
+        default: 'aleph.bot'
+    },
     'NETWORK_PEER_URL': {
         type: 'url',
         description: 'URL of peer node for network connection'

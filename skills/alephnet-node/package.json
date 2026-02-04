@@ -1,6 +1,6 @@
 {
   "name": "@sschepis/alephnet-node",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AlephNet Node - Sentient Observer Interface for OpenClaw",
   "main": "index.js",
   "scripts": {

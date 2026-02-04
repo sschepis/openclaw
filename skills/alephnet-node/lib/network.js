@@ -1684,6 +1684,9 @@ class NetworkSynchronizer extends EventEmitter {
 // DSN NODE
 // ============================================================================
 
+// Default domain for the root node of the Aleph Network
+const ROOT_NODE_DEFAULT_DOMAIN = 'aleph.bot';
+
 /**
  * Distributed Sentience Network Node
  *
@@ -1696,6 +1699,11 @@ class DSNNode extends EventEmitter {
         
         this.nodeId = options.nodeId || generateNodeId();
         this.name = options.name || `Node-${this.nodeId.slice(0, 8)}`;
+        
+        // Domain configuration for network identity
+        // Root node uses aleph.bot as the default domain
+        this.domain = options.domain || ROOT_NODE_DEFAULT_DOMAIN;
+        this.isRootNode = options.isRootNode ?? (this.domain === ROOT_NODE_DEFAULT_DOMAIN);
         
         // Initialize synchronizer (contains all network state)
         this.sync = new NetworkSynchronizer(this.nodeId, options);
@@ -1761,6 +1769,8 @@ class DSNNode extends EventEmitter {
         return {
             nodeId: this.nodeId,
             name: this.name,
+            domain: this.domain,
+            isRootNode: this.isRootNode,
             uptime: Date.now() - this.startTime,
             semanticDomain: this.sync.localField.semanticDomain,
             ...this.sync.getStatus()
@@ -1780,6 +1790,7 @@ module.exports = {
     // Constants
     SEMANTIC_DOMAINS,
     FIRST_100_PRIMES,
+    ROOT_NODE_DEFAULT_DOMAIN,
     
     // Core components
     LocalField,

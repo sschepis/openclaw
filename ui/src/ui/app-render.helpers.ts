@@ -108,7 +108,7 @@ export function renderChatControls(state: AppViewState) {
               lastActiveSessionKey: next,
             });
             void state.loadAssistantIdentity();
-            syncUrlWithSessionKey(state, next, true);
+            syncUrlWithSessionKey(state as any, next, true);
             void loadChatHistory(state);
           }}
         >
@@ -232,7 +232,7 @@ function resolveSessionOptions(
     seen.add(mainSessionKey);
     options.push({
       key: mainSessionKey,
-      displayName: resolveSessionDisplayName(mainSessionKey, resolvedMain),
+      displayName: resolveSessionDisplayName(mainSessionKey, resolvedMain as any),
     });
   }
 

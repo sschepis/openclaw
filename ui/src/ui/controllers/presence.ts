@@ -1,5 +1,5 @@
 import type { GatewayBrowserClient } from "../gateway";
-import type { PresenceEntry } from "../types";
+import type { PresenceEntry, StatusSummary } from "../types";
 
 export type PresenceState = {
   client: GatewayBrowserClient | null;
@@ -7,7 +7,7 @@ export type PresenceState = {
   presenceLoading: boolean;
   presenceEntries: PresenceEntry[];
   presenceError: string | null;
-  presenceStatus: string | null;
+  presenceStatus: string | StatusSummary | null;
 };
 
 export async function loadPresence(state: PresenceState) {

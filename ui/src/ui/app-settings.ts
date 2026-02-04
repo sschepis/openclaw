@@ -46,6 +46,7 @@ type SettingsHost = {
   themeMedia: MediaQueryList | null;
   themeMediaHandler: ((event: MediaQueryListEvent) => void) | null;
   pendingGatewayUrl?: string | null;
+  password?: string;
 };
 
 export function applySettings(host: SettingsHost, next: UiSettings) {

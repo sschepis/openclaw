@@ -371,7 +371,7 @@ export function renderConfigForm(props: ConfigFormProps) {
   const activeSection = props.activeSection;
   const activeSubsection = props.activeSubsection ?? null;
 
-  const entries = Object.entries(properties).toSorted((a, b) => {
+  const entries = (Object.entries(properties) as [string, JsonSchema][]).slice().sort((a: [string, JsonSchema], b: [string, JsonSchema]) => {
     const orderA = hintForPath([a[0]], props.uiHints)?.order ?? 50;
     const orderB = hintForPath([b[0]], props.uiHints)?.order ?? 50;
     if (orderA !== orderB) {
@@ -380,7 +380,7 @@ export function renderConfigForm(props: ConfigFormProps) {
     return a[0].localeCompare(b[0]);
   });
 
-  const filteredEntries = entries.filter(([key, node]) => {
+  const filteredEntries = entries.filter(([key, node]: [string, JsonSchema]) => {
     if (activeSection && key !== activeSection) {
       return false;
     }
@@ -462,7 +462,7 @@ export function renderConfigForm(props: ConfigFormProps) {
               </section>
             `;
             })()
-          : filteredEntries.map(([key, node]) => {
+          : filteredEntries.map(([key, node]: [string, JsonSchema]) => {
               const meta = SECTION_META[key] ?? {
                 label: key.charAt(0).toUpperCase() + key.slice(1),
                 description: node.description ?? "",

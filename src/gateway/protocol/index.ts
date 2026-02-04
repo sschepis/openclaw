@@ -36,6 +36,12 @@ import {
   ChatInjectParamsSchema,
   type ChatDeleteParams,
   ChatDeleteParamsSchema,
+  type ChatDeleteFromParams,
+  ChatDeleteFromParamsSchema,
+  type ChatRerunParams,
+  ChatRerunParamsSchema,
+  type ChatEditParams,
+  ChatEditParamsSchema,
   ChatSendParamsSchema,
   type ConfigApplyParams,
   ConfigApplyParamsSchema,
@@ -332,6 +338,11 @@ export const validateChatSendParams = ajv.compile(ChatSendParamsSchema);
 export const validateChatAbortParams = ajv.compile<ChatAbortParams>(ChatAbortParamsSchema);
 export const validateChatInjectParams = ajv.compile<ChatInjectParams>(ChatInjectParamsSchema);
 export const validateChatDeleteParams = ajv.compile<ChatDeleteParams>(ChatDeleteParamsSchema);
+export const validateChatDeleteFromParams = ajv.compile<ChatDeleteFromParams>(
+  ChatDeleteFromParamsSchema,
+);
+export const validateChatRerunParams = ajv.compile<ChatRerunParams>(ChatRerunParamsSchema);
+export const validateChatEditParams = ajv.compile<ChatEditParams>(ChatEditParamsSchema);
 export const validateChatEvent = ajv.compile(ChatEventSchema);
 export const validateUpdateRunParams = ajv.compile<UpdateRunParams>(UpdateRunParamsSchema);
 export const validateWebLoginStartParams =
@@ -449,6 +460,9 @@ export {
   ChatSendParamsSchema,
   ChatInjectParamsSchema,
   ChatDeleteParamsSchema,
+  ChatDeleteFromParamsSchema,
+  ChatRerunParamsSchema,
+  ChatEditParamsSchema,
   UpdateRunParamsSchema,
   TickEventSchema,
   ShutdownEventSchema,
@@ -545,4 +559,7 @@ export type {
   UpdateRunParams,
   ChatInjectParams,
   ChatDeleteParams,
+  ChatDeleteFromParams,
+  ChatRerunParams,
+  ChatEditParams,
 };

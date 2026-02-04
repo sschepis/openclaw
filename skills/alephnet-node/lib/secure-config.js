@@ -108,6 +108,11 @@ const CONFIG_SCHEMA = {
         description: 'Domain for the root node of the Aleph Network',
         default: 'aleph.bot'
     },
+    'ROOT_NODE_BOOTSTRAP_URL': {
+        type: 'url',
+        description: 'Bootstrap URL for joining the Aleph Network mesh',
+        default: 'https://aleph.bot/functions/v1/alephnet-root/bootstrap'
+    },
     'NETWORK_PEER_URL': {
         type: 'url',
         description: 'URL of peer node for network connection'

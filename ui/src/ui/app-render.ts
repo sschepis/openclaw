@@ -518,6 +518,10 @@ export function renderApp(state: AppViewState) {
                 onDeleteSession: (key) => deleteSession(state, key),
                 onExportSession: (key) => state.handleExportSession(key),
                 onDeleteMessage: (id) => state.handleDeleteMessage(id),
+                onDeleteFromMessage: (id) => state.handleDeleteFromMessage(id),
+                onRerunFromMessage: (id) => state.handleRerunFromMessage(id),
+                onEditMessage: (id, content) => state.handleEditMessage(id, content),
+                onCopyMessage: (content) => state.handleCopyMessage(content),
                 onRenameSession: (key, newName) => state.handleRenameSession(key, newName),
                 userNearBottom: state.chatUserNearBottom,
                 onScrollToBottom: () => {

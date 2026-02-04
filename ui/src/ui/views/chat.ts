@@ -69,6 +69,10 @@ export type ChatProps = {
   onDeleteSession?: (key: string) => void;
   onExportSession?: (key: string) => void;
   onDeleteMessage?: (id: string) => void;
+  onDeleteFromMessage?: (id: string) => void;
+  onRerunFromMessage?: (id: string) => void;
+  onEditMessage?: (id: string, currentContent: string) => void;
+  onCopyMessage?: (text: string) => void;
   onRenameSession?: (key: string, newName: string) => void;
   // Mobile sidebar state
   mobileSessionsOpen?: boolean;
@@ -351,6 +355,10 @@ export function renderChat(props: ChatProps) {
             return renderMessageGroup(item, {
               onOpenSidebar: props.onOpenSidebar,
               onDeleteMessage: props.onDeleteMessage,
+              onDeleteFromMessage: props.onDeleteFromMessage,
+              onRerunFromMessage: props.onRerunFromMessage,
+              onEditMessage: props.onEditMessage,
+              onCopyMessage: props.onCopyMessage,
               showReasoning,
               assistantName: props.assistantName,
               assistantAvatar: assistantIdentity.avatar,

@@ -43,7 +43,8 @@ export function renderChannels(props: ChannelsProps) {
       enabled: channelEnabled(key, props),
       order: index,
     }))
-    .toSorted((a, b) => {
+    .slice()
+    .sort((a: { key: string; enabled: boolean; order: number }, b: { key: string; enabled: boolean; order: number }) => {
       if (a.enabled !== b.enabled) {
         return a.enabled ? -1 : 1;
       }
@@ -52,7 +53,7 @@ export function renderChannels(props: ChannelsProps) {
 
   return html`
     <section class="grid grid-cols-2">
-      ${orderedChannels.map((channel) =>
+      ${orderedChannels.map((channel: { key: string; enabled: boolean; order: number }) =>
         renderChannel(channel.key, props, {
           whatsapp,
           telegram,
@@ -124,7 +125,7 @@ function renderChannel(key: ChannelKey, props: ChannelsProps, data: ChannelsChan
     case "googlechat":
       return renderGoogleChatCard({
         props,
-        googlechat: data.googlechat,
+        googleChat: data.googlechat,
         accountCountLabel,
       });
     case "slack":

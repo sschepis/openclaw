@@ -1687,6 +1687,9 @@ class NetworkSynchronizer extends EventEmitter {
 // Default domain for the root node of the Aleph Network
 const ROOT_NODE_DEFAULT_DOMAIN = 'aleph.bot';
 
+// Bootstrap URL for joining the Aleph Network mesh
+const ROOT_NODE_BOOTSTRAP_URL = 'https://aleph.bot/functions/v1/alephnet-root/bootstrap';
+
 /**
  * Distributed Sentience Network Node
  *
@@ -1705,6 +1708,9 @@ class DSNNode extends EventEmitter {
         this.domain = options.domain || ROOT_NODE_DEFAULT_DOMAIN;
         this.isRootNode = options.isRootNode ?? (this.domain === ROOT_NODE_DEFAULT_DOMAIN);
         
+        // Bootstrap URL for joining the mesh
+        this.bootstrapUrl = options.bootstrapUrl || ROOT_NODE_BOOTSTRAP_URL;
+        
         // Initialize synchronizer (contains all network state)
         this.sync = new NetworkSynchronizer(this.nodeId, options);
         
@@ -1715,6 +1721,9 @@ class DSNNode extends EventEmitter {
         
         // Start time
         this.startTime = Date.now();
+        
+        // Mesh connection state
+        this.meshConnected = false;
     }
     
     /**
@@ -1724,6 +1733,62 @@ class DSNNode extends EventEmitter {
         this.emit('starting');
         await this.sync.onJoin();
         this.emit('started');
+    }
+    
+    /**
+     * Join the Aleph Network mesh via bootstrap endpoint
+     * @param {Object} options - Join options
+     * @param {string} options.bootstrapUrl - Override bootstrap URL
+     * @returns {Promise<Object>} Bootstrap response with peer list
+     */
+    async joinMesh(options = {}) {
+        const url = options.bootstrapUrl || this.bootstrapUrl;
+        
+        this.emit('mesh_joining', { url, nodeId: this.nodeId });
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    nodeId: this.nodeId,
+                    name: this.name,
+                    domain: this.domain,
+                    semanticDomain: this.sync.localField.semanticDomain,
+                    timestamp: Date.now()
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Bootstrap failed: ${response.status} ${response.statusText}`);
+            }
+            
+            const bootstrapData = await response.json();
+            
+            // Connect to provided peers
+            if (bootstrapData.peers && Array.isArray(bootstrapData.peers)) {
+                for (const peer of bootstrapData.peers) {
+                    if (peer.nodeId !== this.nodeId) {
+                        this.emit('peer_discovered', peer);
+                    }
+                }
+            }
+            
+            this.meshConnected = true;
+            this.emit('mesh_joined', {
+                url,
+                nodeId: this.nodeId,
+                peerCount: bootstrapData.peers?.length || 0,
+                bootstrapData
+            });
+            
+            return bootstrapData;
+        } catch (error) {
+            this.emit('mesh_join_failed', { url, nodeId: this.nodeId, error: error.message });
+            throw error;
+        }
     }
     
     /**
@@ -1771,6 +1836,8 @@ class DSNNode extends EventEmitter {
             name: this.name,
             domain: this.domain,
             isRootNode: this.isRootNode,
+            bootstrapUrl: this.bootstrapUrl,
+            meshConnected: this.meshConnected,
             uptime: Date.now() - this.startTime,
             semanticDomain: this.sync.localField.semanticDomain,
             ...this.sync.getStatus()
@@ -1791,6 +1858,7 @@ module.exports = {
     SEMANTIC_DOMAINS,
     FIRST_100_PRIMES,
     ROOT_NODE_DEFAULT_DOMAIN,
+    ROOT_NODE_BOOTSTRAP_URL,
     
     // Core components
     LocalField,

@@ -95,7 +95,7 @@ export async function loadExecApprovals(
       return;
     }
     const res = await state.client.request(rpc.method, rpc.params);
-    applyExecApprovalsSnapshot(state, res);
+    applyExecApprovalsSnapshot(state, res as ExecApprovalsSnapshot);
   } catch (err) {
     state.lastError = String(err);
   } finally {

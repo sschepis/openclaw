@@ -45,6 +45,9 @@ import {
   handleSendChat as handleSendChatInternal,
   removeQueuedMessage as removeQueuedMessageInternal,
   handleDeleteMessage as handleDeleteMessageInternal,
+  handleDeleteFromMessage as handleDeleteFromMessageInternal,
+  handleRerunFromMessage as handleRerunFromMessageInternal,
+  handleEditMessage as handleEditMessageInternal,
 } from "./app-chat";
 import { callDebugMethod } from "./controllers/debug";
 import { DEFAULT_CRON_FORM, DEFAULT_LOG_LEVEL_FILTERS } from "./app-defaults";
@@ -466,6 +469,34 @@ export class OpenClawApp extends LitElement {
       this as unknown as Parameters<typeof handleDeleteMessageInternal>[0],
       messageId,
     );
+  }
+
+  async handleDeleteFromMessage(messageId: string) {
+    await handleDeleteFromMessageInternal(
+      this as unknown as Parameters<typeof handleDeleteFromMessageInternal>[0],
+      messageId,
+    );
+  }
+
+  async handleRerunFromMessage(messageId: string) {
+    await handleRerunFromMessageInternal(
+      this as unknown as Parameters<typeof handleRerunFromMessageInternal>[0],
+      messageId,
+    );
+  }
+
+  async handleEditMessage(messageId: string, currentContent: string) {
+    await handleEditMessageInternal(
+      this as unknown as Parameters<typeof handleEditMessageInternal>[0],
+      messageId,
+      currentContent,
+    );
+  }
+
+  handleCopyMessage(content: string) {
+    navigator.clipboard.writeText(content).catch((err) => {
+      console.error("Failed to copy message:", err);
+    });
   }
 
   async handleWhatsAppStart(force: boolean) {

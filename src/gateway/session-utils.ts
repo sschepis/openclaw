@@ -42,6 +42,9 @@ export {
   readSessionMessages,
   resolveSessionTranscriptCandidates,
   deleteMessageFromTranscript,
+  deleteMessagesFromId,
+  editMessageInTranscript,
+  getMessageContentFromTranscript,
 } from "./session-utils.fs.js";
 export type {
   GatewayAgentRow,

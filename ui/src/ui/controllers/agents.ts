@@ -21,7 +21,7 @@ export async function loadAgents(state: AgentsState) {
   try {
     const res = await state.client.request("agents.list", {});
     if (res) {
-      state.agentsList = res;
+      state.agentsList = res as AgentsListResult;
     }
   } catch (err) {
     state.agentsError = String(err);

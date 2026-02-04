@@ -314,6 +314,8 @@ export type PresenceEntry = {
   reason?: string | null;
   text?: string | null;
   ts?: number | null;
+  roles?: string[] | null;
+  scopes?: string[] | null;
 };
 
 export type GatewaySessionsDefaults = {

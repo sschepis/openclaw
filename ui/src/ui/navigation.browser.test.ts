@@ -116,7 +116,7 @@ describe("control UI routing", () => {
     const app = mountApp("/chat");
     await app.updateComplete;
 
-    const initialContainer = app.querySelector(".chat-thread");
+    const initialContainer = app.querySelector(".chat-thread") as HTMLElement | null;
     expect(initialContainer).not.toBeNull();
     if (!initialContainer) {
       return;

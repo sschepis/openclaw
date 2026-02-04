@@ -334,7 +334,7 @@ export function handleAgentEvent(host: ToolStreamHost, payload?: AgentEventPaylo
       sessionKey,
       name,
       args,
-      output,
+      output: output ?? undefined,
       startedAt: typeof payload.ts === "number" ? payload.ts : now,
       updatedAt: now,
       message: {},
@@ -346,7 +346,7 @@ export function handleAgentEvent(host: ToolStreamHost, payload?: AgentEventPaylo
     if (args !== undefined) {
       entry.args = args;
     }
-    if (output !== undefined) {
+    if (output !== undefined && output !== null) {
       entry.output = output;
     }
     entry.updatedAt = now;

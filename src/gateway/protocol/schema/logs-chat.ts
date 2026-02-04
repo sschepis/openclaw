@@ -69,6 +69,34 @@ export const ChatDeleteParamsSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const ChatDeleteFromParamsSchema = Type.Object(
+  {
+    sessionKey: NonEmptyString,
+    messageId: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const ChatRerunParamsSchema = Type.Object(
+  {
+    sessionKey: NonEmptyString,
+    messageId: NonEmptyString,
+    idempotencyKey: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const ChatEditParamsSchema = Type.Object(
+  {
+    sessionKey: NonEmptyString,
+    messageId: NonEmptyString,
+    content: NonEmptyString,
+    rerun: Type.Optional(Type.Boolean()),
+    idempotencyKey: Type.Optional(NonEmptyString),
+  },
+  { additionalProperties: false },
+);
+
 export const ChatEventSchema = Type.Object(
   {
     runId: NonEmptyString,

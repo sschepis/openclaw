@@ -233,6 +233,92 @@ export async function deleteMessage(state: ChatState, messageId: string) {
   }
 }
 
+export async function deleteFromMessage(state: ChatState, messageId: string) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  try {
+    await state.client.request("chat.deleteFrom", {
+      sessionKey: state.sessionKey,
+      messageId,
+    });
+  } catch (err) {
+    state.lastError = String(err);
+  }
+}
+
+export async function rerunFromMessage(state: ChatState, messageId: string): Promise<string | null> {
+  if (!state.client || !state.connected) {
+    return null;
+  }
+  const runId = generateUUID();
+  state.chatRunId = runId;
+  state.chatStream = "";
+  state.chatStreamStartedAt = Date.now();
+  state.chatSending = true;
+  state.lastError = null;
+
+  try {
+    await state.client.request("chat.rerun", {
+      sessionKey: state.sessionKey,
+      messageId,
+      idempotencyKey: runId,
+    });
+    return runId;
+  } catch (err) {
+    state.chatRunId = null;
+    state.chatStream = null;
+    state.chatStreamStartedAt = null;
+    state.lastError = String(err);
+    return null;
+  } finally {
+    state.chatSending = false;
+  }
+}
+
+export async function editMessage(
+  state: ChatState,
+  messageId: string,
+  content: string,
+  rerun: boolean = false,
+): Promise<string | null> {
+  if (!state.client || !state.connected) {
+    return null;
+  }
+  const runId = rerun ? generateUUID() : null;
+  
+  if (rerun && runId) {
+    state.chatRunId = runId;
+    state.chatStream = "";
+    state.chatStreamStartedAt = Date.now();
+    state.chatSending = true;
+  }
+  state.lastError = null;
+
+  try {
+    await state.client.request("chat.edit", {
+      sessionKey: state.sessionKey,
+      messageId,
+      content,
+      rerun,
+      idempotencyKey: runId ?? undefined,
+    });
+    return runId;
+  } catch (err) {
+    if (rerun) {
+      state.chatRunId = null;
+      state.chatStream = null;
+      state.chatStreamStartedAt = null;
+    }
+    state.lastError = String(err);
+    return null;
+  } finally {
+    if (rerun) {
+      state.chatSending = false;
+    }
+  }
+}
+
 export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
   if (!payload) {
     return null;

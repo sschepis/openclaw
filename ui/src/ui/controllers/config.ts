@@ -42,7 +42,7 @@ export async function loadConfig(state: ConfigState) {
   state.lastError = null;
   try {
     const res = await state.client.request("config.get", {});
-    applyConfigSnapshot(state, res);
+    applyConfigSnapshot(state, res as ConfigSnapshot);
   } catch (err) {
     state.lastError = String(err);
   } finally {
@@ -60,7 +60,7 @@ export async function loadConfigSchema(state: ConfigState) {
   state.configSchemaLoading = true;
   try {
     const res = await state.client.request("config.schema", {});
-    applyConfigSchema(state, res);
+    applyConfigSchema(state, res as ConfigSchemaResponse);
   } catch (err) {
     state.lastError = String(err);
   } finally {

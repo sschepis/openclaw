@@ -45,6 +45,18 @@ export type DevicesState = {
   devicesList: DevicePairingList | null;
 };
 
+type DevicePairListResponse = {
+  pending?: PendingDevice[];
+  paired?: PairedDevice[];
+};
+
+type DeviceTokenRotateResponse = {
+  token?: string;
+  role?: string;
+  deviceId?: string;
+  scopes?: string[];
+};
+
 export async function loadDevices(state: DevicesState, opts?: { quiet?: boolean }) {
   if (!state.client || !state.connected) {
     return;
@@ -57,7 +69,7 @@ export async function loadDevices(state: DevicesState, opts?: { quiet?: boolean 
     state.devicesError = null;
   }
   try {
-    const res = await state.client.request("device.pair.list", {});
+    const res = (await state.client.request("device.pair.list", {})) as DevicePairListResponse;
     state.devicesList = {
       pending: Array.isArray(res?.pending) ? res.pending : [],
       paired: Array.isArray(res?.paired) ? res.paired : [],
@@ -107,7 +119,10 @@ export async function rotateDeviceToken(
     return;
   }
   try {
-    const res = await state.client.request("device.token.rotate", params);
+    const res = (await state.client.request(
+      "device.token.rotate",
+      params,
+    )) as DeviceTokenRotateResponse;
     if (res?.token) {
       const identity = await loadOrCreateDeviceIdentity();
       const role = res.role ?? params.role;

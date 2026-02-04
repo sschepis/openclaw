@@ -11,6 +11,7 @@ function createState(overrides: Partial<ChatState> = {}): ChatState {
     chatThinkingLevel: null,
     chatSending: false,
     chatMessage: "",
+    chatAttachments: [],
     chatRunId: null,
     chatStream: null,
     chatStreamStartedAt: null,

@@ -110,6 +110,10 @@ export function renderMessageGroup(
   opts: {
     onOpenSidebar?: (content: string) => void;
     onDeleteMessage?: (id: string) => void;
+    onDeleteFromMessage?: (id: string) => void;
+    onRerunFromMessage?: (id: string) => void;
+    onEditMessage?: (id: string, currentContent: string) => void;
+    onCopyMessage?: (text: string) => void;
     onSpeak?: (text: string) => void;
     showReasoning: boolean;
     assistantName?: string;
@@ -145,9 +149,14 @@ export function renderMessageGroup(
             {
               isStreaming: group.isStreaming && index === group.messages.length - 1,
               showReasoning: opts.showReasoning,
+              role: group.role,
             },
             opts.onOpenSidebar,
             opts.onDeleteMessage,
+            opts.onDeleteFromMessage,
+            opts.onRerunFromMessage,
+            opts.onEditMessage,
+            opts.onCopyMessage,
             opts.onSpeak,
           ),
         )}
@@ -225,9 +234,13 @@ function renderMessageImages(images: ImageBlock[]) {
 function renderGroupedMessage(
   message: unknown,
   key: string,
-  opts: { isStreaming: boolean; showReasoning: boolean },
+  opts: { isStreaming: boolean; showReasoning: boolean; role?: string },
   onOpenSidebar?: (content: string) => void,
   onDeleteMessage?: (id: string) => void,
+  onDeleteFromMessage?: (id: string) => void,
+  onRerunFromMessage?: (id: string) => void,
+  onEditMessage?: (id: string, currentContent: string) => void,
+  onCopyMessage?: (text: string) => void,
   onSpeak?: (text: string) => void,
 ) {
   const m = message as Record<string, unknown>;
@@ -250,14 +263,16 @@ function renderGroupedMessage(
   const markdownBase = extractedText?.trim() ? extractedText : null;
   const reasoningMarkdown = extractedThinking ? formatReasoningMarkdown(extractedThinking) : null;
   const markdown = markdownBase;
-  const canCopyMarkdown = role === "assistant" && Boolean(markdown?.trim());
+  const hasCopyableContent = Boolean(markdown?.trim());
+  const isUserMessage = normalizeRoleForGrouping(opts.role ?? role) === "user";
+  const isAssistantMessage = normalizeRoleForGrouping(opts.role ?? role) === "assistant";
 
   // Extract ID from key (msg:ID or similar)
   const messageId = key.startsWith("msg:") ? key.slice(4).split(":")[0] : null;
 
   const bubbleClasses = [
     "chat-bubble",
-    canCopyMarkdown ? "has-copy" : "",
+    hasCopyableContent ? "has-copy" : "",
     opts.isStreaming ? "streaming" : "",
     "fade-in",
   ]
@@ -275,7 +290,24 @@ function renderGroupedMessage(
   return html`
     <div class="${bubbleClasses}">
       <div class="chat-actions">
-        ${canCopyMarkdown ? renderCopyAsMarkdownButton(markdown!) : nothing}
+        ${hasCopyableContent && markdown
+          ? html`
+              <button
+                class="chat-action-btn"
+                title="Copy message"
+                @click=${() => {
+                  if (onCopyMessage) {
+                    onCopyMessage(markdown);
+                  } else {
+                    navigator.clipboard.writeText(markdown);
+                  }
+                }}
+              >
+                ${icons.copy}
+              </button>
+            `
+          : nothing}
+        ${isAssistantMessage && hasCopyableContent ? renderCopyAsMarkdownButton(markdown!) : nothing}
         ${onSpeak && markdown
           ? html`
               <button
@@ -284,6 +316,39 @@ function renderGroupedMessage(
                 @click=${() => onSpeak(markdown!)}
               >
                 ${icons.volume2}
+              </button>
+            `
+          : nothing}
+        ${isUserMessage && messageId && onEditMessage && markdown
+          ? html`
+              <button
+                class="chat-action-btn"
+                title="Edit message"
+                @click=${() => onEditMessage(messageId, markdown)}
+              >
+                ${icons.pencil}
+              </button>
+            `
+          : nothing}
+        ${isUserMessage && messageId && onRerunFromMessage
+          ? html`
+              <button
+                class="chat-action-btn"
+                title="Re-run from here"
+                @click=${() => onRerunFromMessage(messageId)}
+              >
+                ${icons.refreshCw}
+              </button>
+            `
+          : nothing}
+        ${messageId && onDeleteFromMessage
+          ? html`
+              <button
+                class="chat-action-btn warning"
+                title="Delete this and all following messages"
+                @click=${() => onDeleteFromMessage(messageId)}
+              >
+                ${icons.scissors}
               </button>
             `
           : nothing}

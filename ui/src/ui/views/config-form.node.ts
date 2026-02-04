@@ -484,10 +484,10 @@ function renderObject(params: {
       ? (fallback as Record<string, unknown>)
       : {};
   const props = schema.properties ?? {};
-  const entries = Object.entries(props);
+  const entries = Object.entries(props) as [string, JsonSchema][];
 
   // Sort by hint order
-  const sorted = entries.toSorted((a, b) => {
+  const sorted = entries.slice().sort((a: [string, JsonSchema], b: [string, JsonSchema]) => {
     const orderA = hintForPath([...path, a[0]], hints)?.order ?? 0;
     const orderB = hintForPath([...path, b[0]], hints)?.order ?? 0;
     if (orderA !== orderB) {
@@ -504,7 +504,7 @@ function renderObject(params: {
   if (path.length === 1) {
     return html`
       <div class="cfg-fields">
-        ${sorted.map(([propKey, node]) =>
+        ${sorted.map(([propKey, node]: [string, JsonSchema]) =>
           renderNode({
             schema: node,
             value: obj[propKey],
@@ -542,7 +542,7 @@ function renderObject(params: {
       </summary>
       ${help ? html`<div class="cfg-object__help">${help}</div>` : nothing}
       <div class="cfg-object__content">
-        ${sorted.map(([propKey, node]) =>
+        ${sorted.map(([propKey, node]: [string, JsonSchema]) =>
           renderNode({
             schema: node,
             value: obj[propKey],

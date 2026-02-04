@@ -30,6 +30,9 @@ import {
   formatValidationErrors,
   validateChatAbortParams,
   validateChatDeleteParams,
+  validateChatDeleteFromParams,
+  validateChatRerunParams,
+  validateChatEditParams,
   validateChatHistoryParams,
   validateChatInjectParams,
   validateChatSendParams,
@@ -38,6 +41,9 @@ import { getMaxChatHistoryMessagesBytes } from "../server-constants.js";
 import {
   capArrayByJsonBytes,
   deleteMessageFromTranscript,
+  deleteMessagesFromId,
+  editMessageInTranscript,
+  getMessageContentFromTranscript,
   loadSessionEntry,
   readSessionMessages,
   resolveSessionModelRef,
@@ -742,5 +748,578 @@ export const chatHandlers: GatewayRequestHandlers = {
     context.nodeSendToSession(sessionKey, "chat", payload);
 
     respond(true, { ok: true });
+  },
+  "chat.deleteFrom": async ({ params, respond, context }) => {
+    if (!validateChatDeleteFromParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid chat.deleteFrom params: ${formatValidationErrors(validateChatDeleteFromParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const { sessionKey, messageId } = params as {
+      sessionKey: string;
+      messageId: string;
+    };
+
+    const { storePath, entry } = loadSessionEntry(sessionKey);
+    const sessionId = entry?.sessionId;
+
+    if (!sessionId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "session not found"));
+      return;
+    }
+
+    const res = deleteMessagesFromId(sessionId, storePath, entry?.sessionFile, messageId);
+    if (!res.ok) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.UNAVAILABLE, res.error ?? "failed to delete messages"),
+      );
+      return;
+    }
+
+    // Broadcast update for each deleted message
+    for (const deletedId of res.deletedIds) {
+      const payload = {
+        runId: `delete-${deletedId}`,
+        sessionKey,
+        seq: 0,
+        state: "final" as const,
+        message: { id: deletedId, deleted: true },
+      };
+      context.broadcast("chat", payload);
+      context.nodeSendToSession(sessionKey, "chat", payload);
+    }
+
+    respond(true, { ok: true, deletedCount: res.deletedIds.length, deletedIds: res.deletedIds });
+  },
+  "chat.rerun": async ({ params, respond, context, client }) => {
+    if (!validateChatRerunParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid chat.rerun params: ${formatValidationErrors(validateChatRerunParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const { sessionKey, messageId, idempotencyKey } = params as {
+      sessionKey: string;
+      messageId: string;
+      idempotencyKey: string;
+    };
+
+    const { storePath, entry, cfg } = loadSessionEntry(sessionKey);
+    const sessionId = entry?.sessionId;
+
+    if (!sessionId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "session not found"));
+      return;
+    }
+
+    // Get the message content
+    const msgRes = getMessageContentFromTranscript(
+      sessionId,
+      storePath,
+      entry?.sessionFile,
+      messageId,
+    );
+    if (!msgRes.ok || !msgRes.content) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          msgRes.error ?? "message not found or has no content",
+        ),
+      );
+      return;
+    }
+
+    // Only allow rerun on user messages
+    if (msgRes.role !== "user") {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "can only rerun from user messages"),
+      );
+      return;
+    }
+
+    // Delete all messages from this one onwards
+    const delRes = deleteMessagesFromId(sessionId, storePath, entry?.sessionFile, messageId);
+    if (!delRes.ok) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.UNAVAILABLE, delRes.error ?? "failed to delete messages for rerun"),
+      );
+      return;
+    }
+
+    // Broadcast deletions
+    for (const deletedId of delRes.deletedIds) {
+      const payload = {
+        runId: `delete-${deletedId}`,
+        sessionKey,
+        seq: 0,
+        state: "final" as const,
+        message: { id: deletedId, deleted: true },
+      };
+      context.broadcast("chat", payload);
+      context.nodeSendToSession(sessionKey, "chat", payload);
+    }
+
+    // Now re-send the user message (this will trigger the AI response)
+    const timeoutMs = resolveAgentTimeoutMs({ cfg });
+    const now = Date.now();
+    const clientRunId = idempotencyKey;
+
+    const sendPolicy = resolveSendPolicy({
+      cfg,
+      entry,
+      sessionKey,
+      channel: entry?.channel,
+      chatType: entry?.chatType,
+    });
+    if (sendPolicy === "deny") {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "send blocked by session policy"),
+      );
+      return;
+    }
+
+    const abortController = new AbortController();
+    context.chatAbortControllers.set(clientRunId, {
+      controller: abortController,
+      sessionId: entry?.sessionId ?? clientRunId,
+      sessionKey,
+      startedAtMs: now,
+      expiresAtMs: resolveChatRunExpiresAtMs({ now, timeoutMs }),
+    });
+
+    respond(true, {
+      ok: true,
+      runId: clientRunId,
+      deletedCount: delRes.deletedIds.length,
+      status: "started" as const,
+    });
+
+    const parsedMessage = msgRes.content;
+    const stampedMessage = injectTimestamp(parsedMessage, timestampOptsFromConfig(cfg));
+    const clientInfo = client?.connect?.client;
+
+    const ctx: MsgContext = {
+      Body: parsedMessage,
+      BodyForAgent: stampedMessage,
+      BodyForCommands: parsedMessage,
+      RawBody: parsedMessage,
+      CommandBody: parsedMessage,
+      SessionKey: sessionKey,
+      Provider: INTERNAL_MESSAGE_CHANNEL,
+      Surface: INTERNAL_MESSAGE_CHANNEL,
+      OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+      ChatType: "direct",
+      CommandAuthorized: true,
+      MessageSid: clientRunId,
+      SenderId: clientInfo?.id,
+      SenderName: clientInfo?.displayName,
+      SenderUsername: clientInfo?.displayName,
+    };
+
+    const agentId = resolveSessionAgentId({ sessionKey, config: cfg });
+    let prefixContext: ResponsePrefixContext = {
+      identityName: resolveIdentityName(cfg, agentId),
+    };
+    const finalReplyParts: string[] = [];
+    const dispatcher = createReplyDispatcher({
+      responsePrefix: resolveEffectiveMessagesConfig(cfg, agentId).responsePrefix,
+      responsePrefixContextProvider: () => prefixContext,
+      onError: (err) => {
+        context.logGateway.warn(`webchat rerun dispatch failed: ${formatForLog(err)}`);
+      },
+      deliver: async (payload, info) => {
+        if (info.kind !== "final") {
+          return;
+        }
+        const text = payload.text?.trim() ?? "";
+        if (!text) {
+          return;
+        }
+        finalReplyParts.push(text);
+      },
+    });
+
+    let agentRunStarted = false;
+    void dispatchInboundMessage({
+      ctx,
+      cfg,
+      dispatcher,
+      replyOptions: {
+        runId: clientRunId,
+        abortSignal: abortController.signal,
+        disableBlockStreaming: true,
+        onAgentRunStart: () => {
+          agentRunStarted = true;
+        },
+        onModelSelected: (modelCtx) => {
+          prefixContext.provider = modelCtx.provider;
+          prefixContext.model = extractShortModelName(modelCtx.model);
+          prefixContext.modelFull = `${modelCtx.provider}/${modelCtx.model}`;
+          prefixContext.thinkingLevel = modelCtx.thinkLevel ?? "off";
+        },
+      },
+    })
+      .then(() => {
+        if (!agentRunStarted) {
+          const combinedReply = finalReplyParts
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .join("\n\n")
+            .trim();
+          let message: Record<string, unknown> | undefined;
+          if (combinedReply) {
+            const { storePath: latestStorePath, entry: latestEntry } = loadSessionEntry(sessionKey);
+            const sid = latestEntry?.sessionId ?? entry?.sessionId ?? clientRunId;
+            const appended = appendAssistantTranscriptMessage({
+              message: combinedReply,
+              sessionId: sid,
+              storePath: latestStorePath,
+              sessionFile: latestEntry?.sessionFile,
+              createIfMissing: true,
+            });
+            if (appended.ok) {
+              message = appended.message;
+            } else {
+              context.logGateway.warn(
+                `webchat rerun transcript append failed: ${appended.error ?? "unknown error"}`,
+              );
+              message = {
+                role: "assistant",
+                content: [{ type: "text", text: combinedReply }],
+                timestamp: Date.now(),
+                stopReason: "injected",
+                usage: { input: 0, output: 0, totalTokens: 0 },
+              };
+            }
+          }
+          broadcastChatFinal({
+            context,
+            runId: clientRunId,
+            sessionKey,
+            message,
+          });
+        }
+        context.dedupe.set(`chat:${clientRunId}`, {
+          ts: Date.now(),
+          ok: true,
+          payload: { runId: clientRunId, status: "ok" as const },
+        });
+      })
+      .catch((err) => {
+        const error = errorShape(ErrorCodes.UNAVAILABLE, String(err));
+        context.dedupe.set(`chat:${clientRunId}`, {
+          ts: Date.now(),
+          ok: false,
+          payload: {
+            runId: clientRunId,
+            status: "error" as const,
+            summary: String(err),
+          },
+          error,
+        });
+        broadcastChatError({
+          context,
+          runId: clientRunId,
+          sessionKey,
+          errorMessage: String(err),
+        });
+      })
+      .finally(() => {
+        context.chatAbortControllers.delete(clientRunId);
+      });
+  },
+  "chat.edit": async ({ params, respond, context, client }) => {
+    if (!validateChatEditParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid chat.edit params: ${formatValidationErrors(validateChatEditParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const { sessionKey, messageId, content, rerun, idempotencyKey } = params as {
+      sessionKey: string;
+      messageId: string;
+      content: string;
+      rerun?: boolean;
+      idempotencyKey?: string;
+    };
+
+    const { storePath, entry, cfg } = loadSessionEntry(sessionKey);
+    const sessionId = entry?.sessionId;
+
+    if (!sessionId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "session not found"));
+      return;
+    }
+
+    // Get the original message to verify it's a user message
+    const msgRes = getMessageContentFromTranscript(
+      sessionId,
+      storePath,
+      entry?.sessionFile,
+      messageId,
+    );
+    if (!msgRes.ok) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, msgRes.error ?? "message not found"),
+      );
+      return;
+    }
+
+    if (msgRes.role !== "user") {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "can only edit user messages"),
+      );
+      return;
+    }
+
+    // If rerun is requested, delete all subsequent messages first
+    if (rerun) {
+      // First, delete all messages after this one (but not this one)
+      // We need to find the next message after this one
+      const delRes = deleteMessagesFromId(sessionId, storePath, entry?.sessionFile, messageId);
+      if (delRes.ok) {
+        // Broadcast deletions for all except the edited message itself
+        for (const deletedId of delRes.deletedIds) {
+          if (deletedId === messageId) {
+            continue;
+          }
+          const payload = {
+            runId: `delete-${deletedId}`,
+            sessionKey,
+            seq: 0,
+            state: "final" as const,
+            message: { id: deletedId, deleted: true },
+          };
+          context.broadcast("chat", payload);
+          context.nodeSendToSession(sessionKey, "chat", payload);
+        }
+      }
+    }
+
+    // Edit the message content
+    const editRes = editMessageInTranscript(
+      sessionId,
+      storePath,
+      entry?.sessionFile,
+      messageId,
+      content,
+    );
+    if (!editRes.ok) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.UNAVAILABLE, editRes.error ?? "failed to edit message"),
+      );
+      return;
+    }
+
+    // Broadcast the edit
+    const editPayload = {
+      runId: `edit-${messageId}`,
+      sessionKey,
+      seq: 0,
+      state: "final" as const,
+      message: { id: messageId, edited: true, content: [{ type: "text", text: content }] },
+    };
+    context.broadcast("chat", editPayload);
+    context.nodeSendToSession(sessionKey, "chat", editPayload);
+
+    // If rerun requested and we have an idempotency key, trigger AI response
+    if (rerun && idempotencyKey) {
+      const timeoutMs = resolveAgentTimeoutMs({ cfg });
+      const now = Date.now();
+      const clientRunId = idempotencyKey;
+
+      const sendPolicy = resolveSendPolicy({
+        cfg,
+        entry,
+        sessionKey,
+        channel: entry?.channel,
+        chatType: entry?.chatType,
+      });
+      if (sendPolicy === "deny") {
+        respond(true, { ok: true, edited: true, rerun: false, reason: "send blocked by policy" });
+        return;
+      }
+
+      const abortController = new AbortController();
+      context.chatAbortControllers.set(clientRunId, {
+        controller: abortController,
+        sessionId: entry?.sessionId ?? clientRunId,
+        sessionKey,
+        startedAtMs: now,
+        expiresAtMs: resolveChatRunExpiresAtMs({ now, timeoutMs }),
+      });
+
+      respond(true, { ok: true, edited: true, rerun: true, runId: clientRunId, status: "started" });
+
+      const stampedMessage = injectTimestamp(content, timestampOptsFromConfig(cfg));
+      const clientInfo = client?.connect?.client;
+
+      const ctx: MsgContext = {
+        Body: content,
+        BodyForAgent: stampedMessage,
+        BodyForCommands: content,
+        RawBody: content,
+        CommandBody: content,
+        SessionKey: sessionKey,
+        Provider: INTERNAL_MESSAGE_CHANNEL,
+        Surface: INTERNAL_MESSAGE_CHANNEL,
+        OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+        ChatType: "direct",
+        CommandAuthorized: true,
+        MessageSid: clientRunId,
+        SenderId: clientInfo?.id,
+        SenderName: clientInfo?.displayName,
+        SenderUsername: clientInfo?.displayName,
+      };
+
+      const agentId = resolveSessionAgentId({ sessionKey, config: cfg });
+      let prefixContext: ResponsePrefixContext = {
+        identityName: resolveIdentityName(cfg, agentId),
+      };
+      const finalReplyParts: string[] = [];
+      const dispatcher = createReplyDispatcher({
+        responsePrefix: resolveEffectiveMessagesConfig(cfg, agentId).responsePrefix,
+        responsePrefixContextProvider: () => prefixContext,
+        onError: (err) => {
+          context.logGateway.warn(`webchat edit+rerun dispatch failed: ${formatForLog(err)}`);
+        },
+        deliver: async (payload, info) => {
+          if (info.kind !== "final") {
+            return;
+          }
+          const text = payload.text?.trim() ?? "";
+          if (!text) {
+            return;
+          }
+          finalReplyParts.push(text);
+        },
+      });
+
+      let agentRunStarted = false;
+      void dispatchInboundMessage({
+        ctx,
+        cfg,
+        dispatcher,
+        replyOptions: {
+          runId: clientRunId,
+          abortSignal: abortController.signal,
+          disableBlockStreaming: true,
+          onAgentRunStart: () => {
+            agentRunStarted = true;
+          },
+          onModelSelected: (modelCtx) => {
+            prefixContext.provider = modelCtx.provider;
+            prefixContext.model = extractShortModelName(modelCtx.model);
+            prefixContext.modelFull = `${modelCtx.provider}/${modelCtx.model}`;
+            prefixContext.thinkingLevel = modelCtx.thinkLevel ?? "off";
+          },
+        },
+      })
+        .then(() => {
+          if (!agentRunStarted) {
+            const combinedReply = finalReplyParts
+              .map((part) => part.trim())
+              .filter(Boolean)
+              .join("\n\n")
+              .trim();
+            let message: Record<string, unknown> | undefined;
+            if (combinedReply) {
+              const { storePath: latestStorePath, entry: latestEntry } =
+                loadSessionEntry(sessionKey);
+              const sid = latestEntry?.sessionId ?? entry?.sessionId ?? clientRunId;
+              const appended = appendAssistantTranscriptMessage({
+                message: combinedReply,
+                sessionId: sid,
+                storePath: latestStorePath,
+                sessionFile: latestEntry?.sessionFile,
+                createIfMissing: true,
+              });
+              if (appended.ok) {
+                message = appended.message;
+              } else {
+                context.logGateway.warn(
+                  `webchat edit+rerun transcript append failed: ${appended.error ?? "unknown error"}`,
+                );
+                message = {
+                  role: "assistant",
+                  content: [{ type: "text", text: combinedReply }],
+                  timestamp: Date.now(),
+                  stopReason: "injected",
+                  usage: { input: 0, output: 0, totalTokens: 0 },
+                };
+              }
+            }
+            broadcastChatFinal({
+              context,
+              runId: clientRunId,
+              sessionKey,
+              message,
+            });
+          }
+          context.dedupe.set(`chat:${clientRunId}`, {
+            ts: Date.now(),
+            ok: true,
+            payload: { runId: clientRunId, status: "ok" as const },
+          });
+        })
+        .catch((err) => {
+          const error = errorShape(ErrorCodes.UNAVAILABLE, String(err));
+          context.dedupe.set(`chat:${clientRunId}`, {
+            ts: Date.now(),
+            ok: false,
+            payload: {
+              runId: clientRunId,
+              status: "error" as const,
+              summary: String(err),
+            },
+            error,
+          });
+          broadcastChatError({
+            context,
+            runId: clientRunId,
+            sessionKey,
+            errorMessage: String(err),
+          });
+        })
+        .finally(() => {
+          context.chatAbortControllers.delete(clientRunId);
+        });
+
+      return;
+    }
+
+    respond(true, { ok: true, edited: true, rerun: false });
   },
 };

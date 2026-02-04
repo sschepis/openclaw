@@ -502,3 +502,185 @@ export function deleteMessageFromTranscript(
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Delete a message and all subsequent messages from the transcript.
+ * Returns the deleted message IDs.
+ */
+export function deleteMessagesFromId(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile: string | undefined,
+  messageId: string,
+): { ok: boolean; deletedIds: string[]; error?: string } {
+  const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile);
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) {
+    return { ok: false, deletedIds: [], error: "transcript file not found" };
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split(/\r?\n/);
+    const newLines: string[] = [];
+    const deletedIds: string[] = [];
+    let foundTarget = false;
+
+    for (const line of lines) {
+      if (!line.trim()) {
+        if (!foundTarget) {
+          newLines.push(line);
+        }
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(line);
+        const lineId = parsed?.id;
+        if (lineId === messageId) {
+          foundTarget = true;
+          deletedIds.push(lineId);
+          continue; // Skip this message and all subsequent
+        }
+        if (foundTarget && parsed?.type === "message") {
+          // Delete subsequent message entries
+          if (lineId) {
+            deletedIds.push(lineId);
+          }
+          continue;
+        }
+      } catch {
+        // keep malformed lines unless we're past the target
+        if (foundTarget) {
+          continue;
+        }
+      }
+      if (!foundTarget) {
+        newLines.push(line);
+      }
+    }
+
+    if (!foundTarget) {
+      return { ok: false, deletedIds: [], error: "message not found" };
+    }
+
+    fs.writeFileSync(filePath, newLines.join("\n"), "utf-8");
+    return { ok: true, deletedIds };
+  } catch (err) {
+    return { ok: false, deletedIds: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Edit the content of a user message in the transcript.
+ */
+export function editMessageInTranscript(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile: string | undefined,
+  messageId: string,
+  newContent: string,
+): { ok: boolean; error?: string } {
+  const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile);
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) {
+    return { ok: false, error: "transcript file not found" };
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split(/\r?\n/);
+    const newLines: string[] = [];
+    let found = false;
+
+    for (const line of lines) {
+      if (!line.trim()) {
+        newLines.push(line);
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed?.id === messageId && parsed?.type === "message") {
+          found = true;
+          // Update the message content
+          const message = parsed.message as Record<string, unknown> | undefined;
+          if (message) {
+            // Update content to the new text
+            message.content = [{ type: "text", text: newContent }];
+            message.editedAt = Date.now();
+          }
+          newLines.push(JSON.stringify(parsed));
+          continue;
+        }
+      } catch {
+        // keep malformed lines
+      }
+      newLines.push(line);
+    }
+
+    if (!found) {
+      return { ok: false, error: "message not found" };
+    }
+
+    fs.writeFileSync(filePath, newLines.join("\n"), "utf-8");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Get the text content of a message from the transcript by ID.
+ */
+export function getMessageContentFromTranscript(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile: string | undefined,
+  messageId: string,
+): { ok: boolean; content?: string; role?: string; error?: string } {
+  const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile);
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) {
+    return { ok: false, error: "transcript file not found" };
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split(/\r?\n/);
+
+    for (const line of lines) {
+      if (!line.trim()) {
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed?.id === messageId && parsed?.type === "message") {
+          const message = parsed.message as Record<string, unknown> | undefined;
+          if (!message) {
+            return { ok: false, error: "message has no content" };
+          }
+          const role = typeof message.role === "string" ? message.role : "unknown";
+          const msgContent = message.content;
+          let text: string | undefined;
+          if (typeof msgContent === "string") {
+            text = msgContent;
+          } else if (Array.isArray(msgContent)) {
+            const textParts = msgContent
+              .filter(
+                (p): p is { type: string; text: string } =>
+                  p && typeof p === "object" && p.type === "text" && typeof p.text === "string",
+              )
+              .map((p) => p.text);
+            text = textParts.join("\n");
+          }
+          return { ok: true, content: text, role };
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+
+    return { ok: false, error: "message not found" };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

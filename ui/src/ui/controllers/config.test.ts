@@ -29,6 +29,9 @@ function createState(): ConfigState {
     configFormOriginal: null,
     configFormDirty: false,
     configFormMode: "form",
+    configSearchQuery: "",
+    configActiveSection: null,
+    configActiveSubsection: null,
     lastError: null,
   };
 }

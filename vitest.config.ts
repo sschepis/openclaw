@@ -21,7 +21,7 @@ export default defineConfig({
     pool: "forks",
     maxWorkers: isCI ? ciWorkers : localWorkers,
     include: ["src/**/*.test.ts", "extensions/**/*.test.ts", "skills/**/*.test.ts", "test/format-error.test.ts"],
-    setupFiles: ["test/setup.ts", "skills/alephnet-node/lib/__tests__/setup.ts"],
+    setupFiles: ["test/setup.ts"],
     globalSetup: ["test/global-setup.ts"],
     exclude: [
       "dist/**",

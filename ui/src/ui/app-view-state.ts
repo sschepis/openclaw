@@ -114,6 +114,10 @@ export type AppViewState = {
   whatsappBusy: boolean;
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
+  /** Currently expanded channel key (accordion-style single expansion) */
+  channelsExpandedChannel: string | null;
+  /** Whether to show the debug health panel */
+  channelsShowHealthDebug: boolean;
   configFormDirty: boolean;
   configSearchQuery: string;
   configActiveSection: string | null;
@@ -135,6 +139,15 @@ export type AppViewState = {
   activitiesLoading: boolean;
   activitiesList: ActivitiesListResult | null;
   activitiesError: string | null;
+  activitiesExpandedSummaries: Set<string>;
+  secretsLoading: boolean;
+  secretsKeys: string[];
+  secretsError: string | null;
+  secretsForm: {
+    key: string;
+    value: string;
+  } | null;
+  secretsSaving: boolean;
   cronLoading: boolean;
   cronJobs: CronJob[];
   cronStatus: CronStatus | null;
@@ -195,6 +208,10 @@ export type AppViewState = {
   handleNostrProfileSave: () => Promise<void>;
   handleNostrProfileImport: () => Promise<void>;
   handleNostrProfileToggleAdvanced: () => void;
+  /** Toggle expanded state for a channel (accordion-style) */
+  handleChannelToggle: (key: string) => void;
+  /** Toggle health debug panel */
+  handleHealthDebugToggle: () => void;
   handleExecApprovalDecision: (decision: "allow-once" | "allow-always" | "deny") => Promise<void>;
   handleGatewayUrlConfirm: () => void;
   handleGatewayUrlCancel: () => void;
@@ -265,6 +282,7 @@ export type AppViewState = {
     actionId: string,
     parameters?: Record<string, unknown>,
   ) => Promise<void>;
+  handleToggleActivitySummary: (sessionKey: string) => void;
   addActionMessage: (action: ActionMessage) => void;
   clearActionMessages: () => void;
   handleRenameSession: (key: string, newName: string) => Promise<void>;

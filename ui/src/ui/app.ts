@@ -236,6 +236,10 @@ export class OpenClawApp extends LitElement {
   @state() whatsappBusy = false;
   @state() nostrProfileFormState: NostrProfileFormState | null = null;
   @state() nostrProfileAccountId: string | null = null;
+  /** Currently expanded channel key (accordion-style single expansion) */
+  @state() channelsExpandedChannel: string | null = null;
+  /** Whether to show the debug health panel */
+  @state() channelsShowHealthDebug = false;
 
   @state() presenceLoading = false;
   @state() presenceEntries: PresenceEntry[] = [];
@@ -257,6 +261,13 @@ export class OpenClawApp extends LitElement {
   @state() activitiesLoading = false;
   @state() activitiesList: ActivitiesListResult | null = null;
   @state() activitiesError: string | null = null;
+  @state() activitiesExpandedSummaries: Set<string> = new Set();
+
+  @state() secretsLoading = false;
+  @state() secretsKeys: string[] = [];
+  @state() secretsError: string | null = null;
+  @state() secretsForm: { key: string; value: string } | null = null;
+  @state() secretsSaving = false;
 
   @state() cronLoading = false;
   @state() cronJobs: CronJob[] = [];
@@ -543,6 +554,16 @@ export class OpenClawApp extends LitElement {
     handleNostrProfileToggleAdvancedInternal(this);
   }
 
+  /** Toggle expanded state for a channel (accordion-style) */
+  handleChannelToggle(key: string) {
+    this.channelsExpandedChannel = this.channelsExpandedChannel === key ? null : key;
+  }
+
+  /** Toggle health debug panel */
+  handleHealthDebugToggle() {
+    this.channelsShowHealthDebug = !this.channelsShowHealthDebug;
+  }
+
   async handleExecApprovalDecision(decision: "allow-once" | "allow-always" | "deny") {
     await handleExecApprovalDecisionInternal(this, decision);
   }
@@ -602,6 +623,17 @@ export class OpenClawApp extends LitElement {
 
   async handleActivityAction(sessionKey: string, actionId: string, parameters?: Record<string, unknown>) {
     await executeActionInternal(this, sessionKey, actionId, parameters);
+  }
+
+  /** Toggle expanded state for activity summary */
+  handleToggleActivitySummary(sessionKey: string) {
+    const newSet = new Set(this.activitiesExpandedSummaries);
+    if (newSet.has(sessionKey)) {
+      newSet.delete(sessionKey);
+    } else {
+      newSet.add(sessionKey);
+    }
+    this.activitiesExpandedSummaries = newSet;
   }
 
   /**

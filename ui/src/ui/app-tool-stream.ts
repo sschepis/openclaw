@@ -352,7 +352,9 @@ export function handleAgentEvent(host: ToolStreamHost, payload?: AgentEventPaylo
     entry.updatedAt = now;
   }
 
-  entry.message = buildToolStreamMessage(entry);
+  // At this point entry is guaranteed to be defined
+  const validEntry = entry;
+  validEntry.message = buildToolStreamMessage(validEntry);
   trimToolStream(host);
   scheduleToolStreamSync(host, phase === "result");
 }

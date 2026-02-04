@@ -12,4 +12,8 @@ export type ChannelsState = {
   whatsappLoginQrDataUrl: string | null;
   whatsappLoginConnected: boolean | null;
   whatsappBusy: boolean;
+  /** Currently expanded channel key (accordion-style single expansion) */
+  channelsExpandedChannel: string | null;
+  /** Whether to show the debug health panel */
+  channelsShowHealthDebug: boolean;
 };

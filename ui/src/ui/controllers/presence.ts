@@ -7,7 +7,7 @@ export type PresenceState = {
   presenceLoading: boolean;
   presenceEntries: PresenceEntry[];
   presenceError: string | null;
-  presenceStatus: string | StatusSummary | null;
+  presenceStatus: StatusSummary | null;
 };
 
 export async function loadPresence(state: PresenceState) {
@@ -24,10 +24,12 @@ export async function loadPresence(state: PresenceState) {
     const res = await state.client.request("system-presence", {});
     if (Array.isArray(res)) {
       state.presenceEntries = res;
-      state.presenceStatus = res.length === 0 ? "No instances yet." : null;
+      // presenceStatus is for StatusSummary objects, not strings
+      // If no instances, the UI should show presenceEntries.length === 0
+      state.presenceStatus = null;
     } else {
       state.presenceEntries = [];
-      state.presenceStatus = "No presence payload.";
+      state.presenceStatus = null;
     }
   } catch (err) {
     state.presenceError = String(err);

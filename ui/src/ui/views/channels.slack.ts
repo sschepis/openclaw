@@ -12,9 +12,11 @@ export function renderSlackCard(params: {
   const { props, slack, accountCountLabel } = params;
 
   return html`
-    <div class="card">
-      <div class="card-title">Slack</div>
-      <div class="card-sub">Socket mode status and channel configuration.</div>
+    <div class="channel-detail">
+      <div class="channel-detail__header">
+        <div class="card-title">Slack</div>
+        <div class="card-sub">Socket mode status and channel configuration.</div>
+      </div>
       ${accountCountLabel}
 
       <div class="status-list" style="margin-top: 16px;">

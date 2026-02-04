@@ -20,6 +20,14 @@ import {
   removeCronJob,
   addCronJob,
 } from "./controllers/cron";
+import {
+  loadSecrets,
+  saveSecret,
+  deleteSecret,
+  openSecretForm,
+  closeSecretForm,
+  updateSecretForm,
+} from "./controllers/secrets";
 import { loadDebug, callDebugMethod } from "./controllers/debug";
 import {
   approveDevicePairing,
@@ -53,6 +61,7 @@ import { renderChannels } from "./views/channels";
 import { renderChat } from "./views/chat";
 import { renderConfig } from "./views/config";
 import { renderCron } from "./views/cron";
+import { renderSecrets } from "./views/secrets";
 import { renderDebug } from "./views/debug";
 import { renderExecApprovalPrompt } from "./views/exec-approval";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation";
@@ -239,6 +248,8 @@ export function renderApp(state: AppViewState) {
                 configFormDirty: state.configFormDirty,
                 nostrProfileFormState: state.nostrProfileFormState,
                 nostrProfileAccountId: state.nostrProfileAccountId,
+                expandedChannel: state.channelsExpandedChannel,
+                showHealthDebug: state.channelsShowHealthDebug,
                 onRefresh: (probe) => loadChannels(state, probe),
                 onWhatsAppStart: (force) => state.handleWhatsAppStart(force),
                 onWhatsAppWait: () => state.handleWhatsAppWait(),
@@ -254,6 +265,8 @@ export function renderApp(state: AppViewState) {
                 onNostrProfileSave: () => state.handleNostrProfileSave(),
                 onNostrProfileImport: () => state.handleNostrProfileImport(),
                 onNostrProfileToggleAdvanced: () => state.handleNostrProfileToggleAdvanced(),
+                onChannelToggle: (key) => state.handleChannelToggle(key),
+                onHealthDebugToggle: () => state.handleHealthDebugToggle(),
               })
             : nothing
         }
@@ -312,6 +325,8 @@ export function renderApp(state: AppViewState) {
                   state.chatLoading = true;
                   state.setTab("chat");
                 },
+                expandedSummaries: state.activitiesExpandedSummaries,
+                onToggleSummary: (sessionKey) => state.handleToggleActivitySummary(sessionKey),
               })
             : nothing
         }
@@ -343,6 +358,29 @@ export function renderApp(state: AppViewState) {
                 onRun: (job) => runCronJob(state, job),
                 onRemove: (job) => removeCronJob(state, job),
                 onLoadRuns: (jobId) => loadCronRuns(state, jobId),
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "secrets"
+            ? renderSecrets({
+                loading: state.secretsLoading,
+                keys: state.secretsKeys,
+                error: state.secretsError,
+                form: state.secretsForm,
+                saving: state.secretsSaving,
+                onRefresh: () => loadSecrets(state),
+                onAdd: () => openSecretForm(state),
+                onEdit: (key) => openSecretForm(state, key),
+                onDelete: (key) => deleteSecret(state, key),
+                onFormClose: () => closeSecretForm(state),
+                onFormUpdate: (patch) => updateSecretForm(state, patch),
+                onFormSave: () => {
+                  if (state.secretsForm) {
+                    saveSecret(state, state.secretsForm.key, state.secretsForm.value);
+                  }
+                },
               })
             : nothing
         }

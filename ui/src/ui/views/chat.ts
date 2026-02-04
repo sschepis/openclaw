@@ -195,7 +195,7 @@ function renderEditableSessionTitle(
   `;
 }
 
-function handlePaste(e: ClipboardEvent, props: ChatProps) {
+function handlePaste(e: ClipboardEvent, props: ChatProps, visionSupported: boolean) {
   const items = e.clipboardData?.items;
   if (!items || !props.onAttachmentsChange) {
     return;
@@ -210,6 +210,10 @@ function handlePaste(e: ClipboardEvent, props: ChatProps) {
   }
 
   if (imageItems.length === 0) {
+    return;
+  }
+
+  if (!visionSupported) {
     return;
   }
 
@@ -277,6 +281,9 @@ export function renderChat(props: ChatProps) {
   const activeSession = props.sessions?.sessions?.find((row) => row.key === props.sessionKey);
   const reasoningLevel = activeSession?.reasoningLevel ?? "off";
   const showReasoning = props.showThinking && reasoningLevel !== "off";
+  // Default to true if capabilities are unknown (legacy behavior), unless we know it's missing
+  const visionSupported = activeSession?.capabilities?.vision ?? true;
+
   const assistantIdentity = {
     name: props.assistantName,
     avatar: props.assistantAvatar ?? props.assistantAvatarUrl ?? null,
@@ -286,7 +293,9 @@ export function renderChat(props: ChatProps) {
   const composePlaceholder = props.connected
     ? hasAttachments
       ? "Add a message or paste more images..."
-      : "Message (↩ to send, Shift+↩ for line breaks, paste images)"
+      : visionSupported
+        ? "Message (↩ to send, Shift+↩ for line breaks, paste images)"
+        : "Message (↩ to send, Shift+↩ for line breaks)"
     : "Connect to the gateway to start chatting…";
 
   const splitRatio = props.splitRatio ?? 0.6;
@@ -540,7 +549,7 @@ export function renderChat(props: ChatProps) {
         <div class="chat-compose">
           ${renderAttachmentPreview(props)}
           <div class="chat-compose__row">
-            ${props.onFileUpload 
+            ${props.onFileUpload && visionSupported
               ? html`
                 <input
                   type="file"
@@ -598,7 +607,7 @@ export function renderChat(props: ChatProps) {
                   adjustTextareaHeight(target);
                   props.onDraftChange(target.value);
                 }}
-                @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
+                @paste=${(e: ClipboardEvent) => handlePaste(e, props, visionSupported)}
                 placeholder=${composePlaceholder}
               ></textarea>
             </label>

@@ -364,6 +364,9 @@ export type GatewaySessionRow = {
   totalTokens?: number;
   model?: string;
   modelProvider?: string;
+  capabilities?: {
+    vision?: boolean;
+  };
   contextTokens?: number;
   cronJobs?: CronJob[];
 };
@@ -604,4 +607,20 @@ export type ActivitiesListResult = {
   ts: number;
   count: number;
   activities: ActivityState[];
+};
+
+// Secrets types
+export type SecretsListResult = {
+  keys: string[];
+};
+
+export type SecretsState = {
+  loading: boolean;
+  keys: string[];
+  error: string | null;
+  form: {
+    key: string;
+    value: string;
+  } | null;
+  saving: boolean;
 };

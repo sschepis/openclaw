@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
+import type { ModelCatalogEntry } from "../../agents/model-catalog.js";
 import type { GatewayRequestHandlers } from "./types.js";
 import { abortEmbeddedPiRun, waitForEmbeddedPiRunEnd } from "../../agents/pi-embedded.js";
 import { stopSubagentsForRequester } from "../../auto-reply/reply/abort.js";
@@ -64,12 +65,20 @@ export const sessionsHandlers: GatewayRequestHandlers = {
       // Ignore cron errors
     }
 
+    let modelCatalog: ModelCatalogEntry[] = [];
+    try {
+      modelCatalog = await context.loadGatewayModelCatalog();
+    } catch {
+      // Ignore catalog errors
+    }
+
     const result = listSessionsFromStore({
       cfg,
       storePath,
       store,
       opts: p,
       cronJobs,
+      modelCatalog,
     });
     respond(true, result, undefined);
   },

@@ -10,6 +10,11 @@ import type {
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
 import { lookupContextTokens } from "../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
+import {
+  type ModelCatalogEntry,
+  findModelInCatalog,
+  modelSupportsVision,
+} from "../agents/model-catalog.js";
 import { resolveConfiguredModelRef } from "../agents/model-selection.js";
 import { type OpenClawConfig, loadConfig } from "../config/config.js";
 import { resolveStateDir } from "../config/paths.js";
@@ -549,8 +554,9 @@ export function listSessionsFromStore(params: {
   store: Record<string, SessionEntry>;
   opts: import("./protocol/index.js").SessionsListParams;
   cronJobs?: CronJob[];
+  modelCatalog?: ModelCatalogEntry[];
 }): SessionsListResult {
-  const { cfg, storePath, store, opts, cronJobs } = params;
+  const { cfg, storePath, store, opts, cronJobs, modelCatalog } = params;
   const now = Date.now();
 
   const includeGlobal = opts.includeGlobal === true;
@@ -645,6 +651,17 @@ export function listSessionsFromStore(params: {
         }
       }
 
+      const modelProvider = entry?.modelProvider;
+      const model = entry?.model;
+      let capabilities: { vision?: boolean } | undefined;
+
+      if (modelCatalog && modelProvider && model) {
+        const found = findModelInCatalog(modelCatalog, modelProvider, model);
+        if (found) {
+          capabilities = { vision: modelSupportsVision(found) };
+        }
+      }
+
       return {
         key,
         entry,
@@ -670,8 +687,9 @@ export function listSessionsFromStore(params: {
         outputTokens: entry?.outputTokens,
         totalTokens: total,
         responseUsage: entry?.responseUsage,
-        modelProvider: entry?.modelProvider,
-        model: entry?.model,
+        modelProvider,
+        model,
+        capabilities,
         contextTokens: entry?.contextTokens,
         deliveryContext: deliveryFields.deliveryContext,
         lastChannel: deliveryFields.lastChannel ?? entry?.lastChannel,

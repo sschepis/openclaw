@@ -34,6 +34,10 @@ export type ChannelsProps = {
   configFormDirty: boolean;
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
+  /** Currently expanded channel key (accordion-style single expansion) */
+  expandedChannel: ChannelKey | null;
+  /** Whether to show the debug health panel */
+  showHealthDebug: boolean;
   onRefresh: (probe: boolean) => void;
   onWhatsAppStart: (force: boolean) => void;
   onWhatsAppWait: () => void;
@@ -47,6 +51,10 @@ export type ChannelsProps = {
   onNostrProfileSave: () => void;
   onNostrProfileImport: () => void;
   onNostrProfileToggleAdvanced: () => void;
+  /** Toggle expanded state for a channel */
+  onChannelToggle: (key: ChannelKey) => void;
+  /** Toggle health debug panel */
+  onHealthDebugToggle: () => void;
 };
 
 export type ChannelsChannelData = {

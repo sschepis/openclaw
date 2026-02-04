@@ -560,12 +560,36 @@ export async function runTui(opts: TuiOptions) {
     closeOverlay,
   });
   updateAutocompleteProvider();
-  editor.onSubmit = createEditorSubmitHandler({
+
+  let pendingSecretId: string | null = null;
+  let secretKeyName: string | null = null;
+
+  const defaultSubmitHandler = createEditorSubmitHandler({
     editor,
     handleCommand,
     sendMessage,
     handleBangLine: runLocalShellLine,
   });
+
+  editor.onSubmit = (text) => {
+    if (pendingSecretId) {
+      const value = text.trim();
+      if (!value) return;
+
+      client
+        .call("secrets.resolve", { id: pendingSecretId, value })
+        .catch((err) => chatLog.addSystem(`Error sending secret: ${String(err)}`));
+
+      chatLog.addSystem(`🔒 Secret '${secretKeyName}' sent.`);
+      pendingSecretId = null;
+      secretKeyName = null;
+      editor.setText("");
+      setActivityStatus("idle");
+      tui.requestRender();
+      return;
+    }
+    defaultSubmitHandler(text);
+  };
 
   editor.onEscape = () => {
     void abortActive();
@@ -618,6 +642,16 @@ export async function runTui(opts: TuiOptions) {
     }
     if (evt.event === "agent") {
       handleAgentEvent(evt.payload);
+    }
+    if (evt.event === "secrets.requested") {
+      const payload = evt.payload as { id: string; key: string; description?: string };
+      pendingSecretId = payload.id;
+      secretKeyName = payload.key;
+      chatLog.addSystem(
+        `\n🔒 **SECRET REQUIRED**: ${payload.key}\n${payload.description || "Please enter the value below."}\n`,
+      );
+      setActivityStatus(`Provide secret: ${payload.key}`);
+      tui.requestRender();
     }
   };
 

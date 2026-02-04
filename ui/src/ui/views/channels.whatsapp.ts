@@ -13,9 +13,11 @@ export function renderWhatsAppCard(params: {
   const { props, whatsapp, accountCountLabel } = params;
 
   return html`
-    <div class="card">
-      <div class="card-title">WhatsApp</div>
-      <div class="card-sub">Link WhatsApp Web and monitor connection health.</div>
+    <div class="channel-detail">
+      <div class="channel-detail__header">
+        <div class="card-title">WhatsApp</div>
+        <div class="card-sub">Link WhatsApp Web and monitor connection health.</div>
+      </div>
       ${accountCountLabel}
 
       <div class="status-list" style="margin-top: 16px;">

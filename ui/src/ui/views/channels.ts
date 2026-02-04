@@ -26,6 +26,18 @@ import { renderSlackCard } from "./channels.slack";
 import { renderTelegramCard } from "./channels.telegram";
 import { renderWhatsAppCard } from "./channels.whatsapp";
 
+// Channel icons (emoji fallback for simplicity)
+const CHANNEL_ICONS: Record<string, string> = {
+  whatsapp: "💬",
+  telegram: "✈️",
+  discord: "🎮",
+  googlechat: "💼",
+  slack: "📱",
+  signal: "🔒",
+  imessage: "🍎",
+  nostr: "⚡",
+};
+
 export function renderChannels(props: ChannelsProps) {
   const channels = props.snapshot?.channels as Record<string, unknown> | null;
   const whatsapp = (channels?.whatsapp ?? undefined) as WhatsAppStatus | undefined;
@@ -51,56 +63,169 @@ export function renderChannels(props: ChannelsProps) {
       return a.order - b.order;
     });
 
-  return html`
-    <section class="grid grid-cols-2">
-      ${orderedChannels.map((channel: { key: string; enabled: boolean; order: number }) =>
-        renderChannel(channel.key, props, {
-          whatsapp,
-          telegram,
-          discord,
-          googlechat,
-          slack,
-          signal,
-          imessage,
-          nostr,
-          channelAccounts: props.snapshot?.channelAccounts ?? null,
-        }),
-      )}
-    </section>
+  const channelData: ChannelsChannelData = {
+    whatsapp,
+    telegram,
+    discord,
+    googlechat,
+    slack,
+    signal,
+    imessage,
+    nostr,
+    channelAccounts: props.snapshot?.channelAccounts ?? null,
+  };
 
-    <section class="card" style="margin-top: 18px;">
-      <div class="row" style="justify-content: space-between;">
-        <div>
-          <div class="card-title">Channel health</div>
-          <div class="card-sub">Channel status snapshots from the gateway.</div>
-        </div>
-        <div class="muted">${props.lastSuccessAt ? formatAgo(props.lastSuccessAt) : "n/a"}</div>
+  return html`
+    <div class="channels-page">
+      ${renderChannelsSummary(orderedChannels, props, channelData)}
+      
+      <div class="channels-accordion">
+        ${orderedChannels.map((channel) =>
+          renderChannelAccordionItem(channel.key, channel.enabled, props, channelData),
+        )}
       </div>
-      ${
-        props.lastError
-          ? html`<div class="callout danger" style="margin-top: 12px;">
-            ${props.lastError}
-          </div>`
-          : nothing
-      }
-      <pre class="code-block" style="margin-top: 12px;">
-${props.snapshot ? JSON.stringify(props.snapshot, null, 2) : "No snapshot yet."}
-      </pre>
-    </section>
+
+      ${renderHealthDebugPanel(props)}
+    </div>
   `;
 }
 
-function resolveChannelOrder(snapshot: ChannelsStatusSnapshot | null): ChannelKey[] {
-  if (snapshot?.channelMeta?.length) {
-    return snapshot.channelMeta.map((entry) => entry.id);
-  }
-  if (snapshot?.channelOrder?.length) {
-    return snapshot.channelOrder;
-  }
-  return ["whatsapp", "telegram", "discord", "googlechat", "slack", "signal", "imessage", "nostr"];
+/** Compact summary bar showing all channels at a glance */
+function renderChannelsSummary(
+  orderedChannels: Array<{ key: string; enabled: boolean; order: number }>,
+  props: ChannelsProps,
+  channelData: ChannelsChannelData,
+) {
+  const enabledCount = orderedChannels.filter((c) => c.enabled).length;
+  const totalCount = orderedChannels.length;
+
+  return html`
+    <div class="channels-summary">
+      <div class="channels-summary__header">
+        <div class="channels-summary__stats">
+          <span class="channels-summary__count">${enabledCount}/${totalCount}</span>
+          <span class="channels-summary__label">channels active</span>
+        </div>
+        <div class="channels-summary__actions">
+          <button class="btn btn--sm" @click=${() => props.onRefresh(true)}>
+            Refresh All
+          </button>
+        </div>
+      </div>
+      <div class="channels-summary__chips">
+        ${orderedChannels.map((channel) => {
+          const status = getChannelQuickStatus(channel.key, channelData);
+          return html`
+            <button
+              class="channel-chip ${channel.enabled ? "channel-chip--active" : ""} ${props.expandedChannel === channel.key ? "channel-chip--selected" : ""}"
+              @click=${() => props.onChannelToggle(channel.key)}
+              title="${resolveChannelLabel(props.snapshot, channel.key)}"
+            >
+              <span class="channel-chip__icon">${CHANNEL_ICONS[channel.key] ?? "📡"}</span>
+              <span class="channel-chip__name">${resolveChannelLabel(props.snapshot, channel.key)}</span>
+              <span class="channel-chip__status ${status.class}">${status.icon}</span>
+            </button>
+          `;
+        })}
+      </div>
+    </div>
+  `;
 }
 
-function renderChannel(key: ChannelKey, props: ChannelsProps, data: ChannelsChannelData) {
+/** Get quick status indicator for a channel */
+function getChannelQuickStatus(key: string, data: ChannelsChannelData): { icon: string; class: string } {
+  const channelStatus = getChannelStatusByKey(key, data);
+  if (!channelStatus) {
+    return { icon: "○", class: "status--unknown" };
+  }
+  
+  const configured = channelStatus.configured;
+  const running = channelStatus.running;
+  const connected = channelStatus.connected;
+  const hasError = Boolean(channelStatus.lastError);
+
+  if (hasError) {
+    return { icon: "●", class: "status--error" };
+  }
+  if (connected) {
+    return { icon: "●", class: "status--connected" };
+  }
+  if (running) {
+    return { icon: "●", class: "status--running" };
+  }
+  if (configured) {
+    return { icon: "○", class: "status--configured" };
+  }
+  return { icon: "○", class: "status--inactive" };
+}
+
+/** Get channel status object by key */
+function getChannelStatusByKey(key: string, data: ChannelsChannelData): {
+  configured?: boolean;
+  running?: boolean;
+  connected?: boolean;
+  lastError?: string | null;
+} | null {
+  switch (key) {
+    case "whatsapp":
+      return data.whatsapp ?? null;
+    case "telegram":
+      return data.telegram ?? null;
+    case "discord":
+      return data.discord ?? null;
+    case "googlechat":
+      return data.googlechat ?? null;
+    case "slack":
+      return data.slack ?? null;
+    case "signal":
+      return data.signal ?? null;
+    case "imessage":
+      return data.imessage ?? null;
+    case "nostr":
+      return data.nostr ?? null;
+    default:
+      return null;
+  }
+}
+
+/** Accordion item for each channel - compact header + expandable content */
+function renderChannelAccordionItem(
+  key: ChannelKey,
+  enabled: boolean,
+  props: ChannelsProps,
+  data: ChannelsChannelData,
+) {
+  const isExpanded = props.expandedChannel === key;
+  const label = resolveChannelLabel(props.snapshot, key);
+  const status = getChannelQuickStatus(key, data);
+  const accountCount = data.channelAccounts?.[key]?.length ?? 0;
+
+  return html`
+    <div class="channel-accordion ${isExpanded ? "channel-accordion--expanded" : ""} ${enabled ? "channel-accordion--enabled" : ""}">
+      <button
+        class="channel-accordion__header"
+        @click=${() => props.onChannelToggle(key)}
+        aria-expanded=${isExpanded}
+      >
+        <span class="channel-accordion__icon">${CHANNEL_ICONS[key] ?? "📡"}</span>
+        <span class="channel-accordion__title">${label}</span>
+        <span class="channel-accordion__meta">
+          ${accountCount > 1 ? html`<span class="channel-accordion__accounts">${accountCount} accounts</span>` : nothing}
+          <span class="channel-accordion__status ${status.class}">${status.icon}</span>
+        </span>
+        <span class="channel-accordion__chevron">${isExpanded ? "▼" : "▶"}</span>
+      </button>
+      ${isExpanded ? html`
+        <div class="channel-accordion__content">
+          ${renderChannelContent(key, props, data)}
+        </div>
+      ` : nothing}
+    </div>
+  `;
+}
+
+/** Render the full channel content when expanded */
+function renderChannelContent(key: ChannelKey, props: ChannelsProps, data: ChannelsChannelData) {
   const accountCountLabel = renderChannelAccountCount(key, data.channelAccounts);
   switch (key) {
     case "whatsapp":
@@ -178,6 +303,46 @@ function renderChannel(key: ChannelKey, props: ChannelsProps, data: ChannelsChan
   }
 }
 
+/** Health debug panel - collapsible at the bottom */
+function renderHealthDebugPanel(props: ChannelsProps) {
+  return html`
+    <details class="channels-debug" ?open=${props.showHealthDebug}>
+      <summary class="channels-debug__summary" @click=${(e: Event) => {
+        e.preventDefault();
+        props.onHealthDebugToggle();
+      }}>
+        <span class="channels-debug__title">Debug: Channel Health</span>
+        <span class="channels-debug__meta">${props.lastSuccessAt ? formatAgo(props.lastSuccessAt) : "n/a"}</span>
+        <span class="channels-debug__chevron">${props.showHealthDebug ? "▼" : "▶"}</span>
+      </summary>
+      ${props.showHealthDebug ? html`
+        <div class="channels-debug__content">
+          ${
+            props.lastError
+              ? html`<div class="callout danger" style="margin-bottom: 12px;">
+                ${props.lastError}
+              </div>`
+              : nothing
+          }
+          <pre class="code-block">
+${props.snapshot ? JSON.stringify(props.snapshot, null, 2) : "No snapshot yet."}
+          </pre>
+        </div>
+      ` : nothing}
+    </details>
+  `;
+}
+
+function resolveChannelOrder(snapshot: ChannelsStatusSnapshot | null): ChannelKey[] {
+  if (snapshot?.channelMeta?.length) {
+    return snapshot.channelMeta.map((entry) => entry.id);
+  }
+  if (snapshot?.channelOrder?.length) {
+    return snapshot.channelOrder;
+  }
+  return ["whatsapp", "telegram", "discord", "googlechat", "slack", "signal", "imessage", "nostr"];
+}
+
 function renderGenericChannelCard(
   key: ChannelKey,
   props: ChannelsProps,
@@ -193,9 +358,11 @@ function renderGenericChannelCard(
   const accountCountLabel = renderChannelAccountCount(key, channelAccounts);
 
   return html`
-    <div class="card">
-      <div class="card-title">${label}</div>
-      <div class="card-sub">Channel status and configuration.</div>
+    <div class="channel-detail">
+      <div class="channel-detail__header">
+        <div class="card-title">${label}</div>
+        <div class="card-sub">Channel status and configuration.</div>
+      </div>
       ${accountCountLabel}
 
       ${

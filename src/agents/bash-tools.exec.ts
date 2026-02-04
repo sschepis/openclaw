@@ -29,6 +29,7 @@ import { enqueueSystemEvent } from "../infra/system-events.js";
 import { logInfo, logWarn } from "../logger.js";
 import { formatSpawnError, spawnWithFallback } from "../process/spawn-utils.js";
 import { parseAgentSessionKey, resolveAgentIdFromSessionKey } from "../routing/session-key.js";
+import { secretsClient } from "../secrets/agent-client.js";
 import {
   type ProcessSession,
   type SessionStdin,
@@ -797,6 +798,53 @@ async function runExecProcess(opts: {
   };
 }
 
+async function resolveEnvSecrets(env: Record<string, string>): Promise<Record<string, string>> {
+  const resolved: Record<string, string> = {};
+  // Matches {{SECRET:KEY_NAME}}
+  const regex = /\{\{SECRET:([a-zA-Z0-9_.-]+)\}\}/g;
+
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value !== "string") {
+      resolved[key] = value;
+      continue;
+    }
+
+    if (!value.includes("{{SECRET:")) {
+      resolved[key] = value;
+      continue;
+    }
+
+    let newValue = value;
+    let match;
+    // We clone the regex or reset lastIndex because we are in a loop?
+    // Actually exec() with global flag updates lastIndex. We need to handle overlapping matches or just run it.
+    // Simpler: find all matches first.
+
+    const secretKeys = new Set<string>();
+    while ((match = regex.exec(value)) !== null) {
+      secretKeys.add(match[1]);
+    }
+
+    // Reset for next iteration if we reused regex, but we created new one inside loop? No, declared outside?
+    // I'll redeclare regex inside loop to be safe or reset it.
+    regex.lastIndex = 0;
+
+    for (const secretKey of secretKeys) {
+      try {
+        const secretValue = await secretsClient.getSecret(secretKey, `Required for env var ${key}`);
+        // Replace all instances of this secret
+        newValue = newValue.replaceAll(`{{SECRET:${secretKey}}}`, secretValue);
+      } catch (err) {
+        throw new Error(
+          `Failed to resolve secret '${secretKey}' for environment variable '${key}': ${err}`,
+        );
+      }
+    }
+    resolved[key] = newValue;
+  }
+  return resolved;
+}
+
 export function createExecTool(
   defaults?: ExecToolDefaults,
   // oxlint-disable-next-line typescript/no-explicit-any
@@ -966,24 +1014,27 @@ export function createExecTool(
 
       const baseEnv = coerceEnv(process.env);
 
+      // Resolve secrets in params.env before validation/merging
+      const resolvedEnvParams = params.env ? await resolveEnvSecrets(params.env) : undefined;
+
       // Logic: Sandbox gets raw env. Host (gateway/node) must pass validation.
       // We validate BEFORE merging to prevent any dangerous vars from entering the stream.
-      if (host !== "sandbox" && params.env) {
-        validateHostEnv(params.env);
+      if (host !== "sandbox" && resolvedEnvParams) {
+        validateHostEnv(resolvedEnvParams);
       }
 
-      const mergedEnv = params.env ? { ...baseEnv, ...params.env } : baseEnv;
+      const mergedEnv = resolvedEnvParams ? { ...baseEnv, ...resolvedEnvParams } : baseEnv;
 
       const env = sandbox
         ? buildSandboxEnv({
             defaultPath: DEFAULT_PATH,
-            paramsEnv: params.env,
+            paramsEnv: resolvedEnvParams,
             sandboxEnv: sandbox.env,
             containerWorkdir: containerWorkdir ?? sandbox.containerWorkdir,
           })
         : mergedEnv;
 
-      if (!sandbox && host === "gateway" && !params.env?.PATH) {
+      if (!sandbox && host === "gateway" && !resolvedEnvParams?.PATH) {
         const shellPath = getShellPathFromLoginShell({
           env: process.env,
           timeoutMs: resolveShellEnvFallbackTimeoutMs(process.env),
@@ -1035,7 +1086,7 @@ export function createExecTool(
         }
         const argv = buildNodeShellCommand(params.command, nodeInfo?.platform);
 
-        const nodeEnv = params.env ? { ...params.env } : undefined;
+        const nodeEnv = resolvedEnvParams ? { ...resolvedEnvParams } : undefined;
 
         if (nodeEnv) {
           applyPathPrepend(nodeEnv, defaultPathPrepend, { requireExisting: true });

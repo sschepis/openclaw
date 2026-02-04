@@ -53,9 +53,11 @@ export function renderTelegramCard(params: {
   };
 
   return html`
-    <div class="card">
-      <div class="card-title">Telegram</div>
-      <div class="card-sub">Bot status and channel configuration.</div>
+    <div class="channel-detail">
+      <div class="channel-detail__header">
+        <div class="card-title">Telegram</div>
+        <div class="card-sub">Bot status and channel configuration.</div>
+      </div>
       ${accountCountLabel}
 
       ${

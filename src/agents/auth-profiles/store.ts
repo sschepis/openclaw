@@ -229,6 +229,13 @@ export function loadAuthProfileStore(): AuthProfileStore {
           ...(typeof cred.expires === "number" ? { expires: cred.expires } : {}),
           ...(cred.email ? { email: cred.email } : {}),
         };
+      } else if (cred.type === "service_account") {
+        store.profiles[profileId] = {
+          type: "service_account",
+          provider: String(cred.provider ?? provider),
+          keyJson: cred.keyJson,
+          ...(cred.email ? { email: cred.email } : {}),
+        };
       } else {
         store.profiles[profileId] = {
           type: "oauth",
@@ -303,6 +310,13 @@ function loadAuthProfileStoreForAgent(
           provider: String(cred.provider ?? provider),
           token: cred.token,
           ...(typeof cred.expires === "number" ? { expires: cred.expires } : {}),
+          ...(cred.email ? { email: cred.email } : {}),
+        };
+      } else if (cred.type === "service_account") {
+        store.profiles[profileId] = {
+          type: "service_account",
+          provider: String(cred.provider ?? provider),
+          keyJson: cred.keyJson,
           ...(cred.email ? { email: cred.email } : {}),
         };
       } else {

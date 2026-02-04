@@ -1,5 +1,6 @@
 import type { GatewayRequestHandlers, GatewayRequestOptions } from "./server-methods/types.js";
 import { ErrorCodes, errorShape } from "./protocol/index.js";
+import { activitiesHandlers } from "./server-methods/activities.js";
 import { agentHandlers } from "./server-methods/agent.js";
 import { agentsHandlers } from "./server-methods/agents.js";
 import { browserHandlers } from "./server-methods/browser.js";
@@ -64,6 +65,7 @@ const READ_METHODS = new Set([
   "voicewake.get",
   "sessions.list",
   "sessions.preview",
+  "activities.list",
   "cron.list",
   "cron.status",
   "cron.runs",
@@ -88,6 +90,7 @@ const WRITE_METHODS = new Set([
   "chat.send",
   "chat.abort",
   "browser.request",
+  "activities.execute",
 ]);
 
 function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["client"]) {
@@ -160,6 +163,7 @@ function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["c
 }
 
 export const coreGatewayHandlers: GatewayRequestHandlers = {
+  ...activitiesHandlers,
   ...connectHandlers,
   ...logsHandlers,
   ...voicewakeHandlers,

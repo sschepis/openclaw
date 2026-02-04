@@ -162,6 +162,7 @@ function computeNextProfileUsageStats(params: {
   now: number;
   reason: AuthProfileFailureReason;
   cfgResolved: ResolvedAuthCooldownConfig;
+  cooldownMs?: number;
 }): ProfileUsageStats {
   const windowMs = params.cfgResolved.failureWindowMs;
   const windowExpired =
@@ -191,7 +192,7 @@ function computeNextProfileUsageStats(params: {
     updatedStats.disabledUntil = params.now + backoffMs;
     updatedStats.disabledReason = "billing";
   } else {
-    const backoffMs = calculateAuthProfileCooldownMs(nextErrorCount);
+    const backoffMs = params.cooldownMs ?? calculateAuthProfileCooldownMs(nextErrorCount);
     updatedStats.cooldownUntil = params.now + backoffMs;
   }
 
@@ -208,8 +209,9 @@ export async function markAuthProfileFailure(params: {
   reason: AuthProfileFailureReason;
   cfg?: OpenClawConfig;
   agentDir?: string;
+  cooldownMs?: number;
 }): Promise<void> {
-  const { store, profileId, reason, agentDir, cfg } = params;
+  const { store, profileId, reason, agentDir, cfg, cooldownMs } = params;
   const updated = await updateAuthProfileStoreWithLock({
     agentDir,
     updater: (freshStore) => {
@@ -232,6 +234,7 @@ export async function markAuthProfileFailure(params: {
         now,
         reason,
         cfgResolved,
+        cooldownMs,
       });
       return true;
     },
@@ -258,6 +261,7 @@ export async function markAuthProfileFailure(params: {
     now,
     reason,
     cfgResolved,
+    cooldownMs,
   });
   saveAuthProfileStore(store, agentDir);
 }

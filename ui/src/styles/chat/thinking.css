@@ -1,0 +1,139 @@
+.thinking-panel {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slide-down 0.2s var(--ease-out);
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.thinking-loader {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.thinking-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.thinking-status {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+}
+
+.thinking-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 32px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.thinking-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  padding: 4px 0;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.thinking-action.running {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.thinking-action.error {
+  color: var(--danger);
+}
+
+.thinking-action.done {
+  color: var(--muted);
+}
+
+.thinking-action-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.thinking-action-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.thinking-dot-pulse {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+.thinking-action-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.thinking-action-label {
+  font-weight: 500;
+}
+
+.thinking-action-detail {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-top: 2px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.thinking-action-time {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-left: 8px;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}

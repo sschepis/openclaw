@@ -10,6 +10,16 @@ export type SkillsState = {
   skillsBusyKey: string | null;
   skillEdits: Record<string, string>;
   skillMessages: SkillMessageMap;
+  registryLoading: boolean;
+  registryError: string | null;
+  registryList: RegistrySkill[];
+};
+
+export type RegistrySkill = {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
 };
 
 export type SkillMessage = {
@@ -58,7 +68,7 @@ export async function loadSkills(state: SkillsState, options?: LoadSkillsOptions
   try {
     const res = await state.client.request("skills.status", {});
     if (res) {
-      state.skillsReport = res;
+      state.skillsReport = res as any;
     }
   } catch (err) {
     state.skillsError = getErrorMessage(err);
@@ -138,7 +148,7 @@ export async function installSkill(
       name,
       installId,
       timeoutMs: 120000,
-    });
+    }) as { message?: string };
     await loadSkills(state);
     setSkillMessage(state, skillKey, {
       kind: "success",
@@ -153,5 +163,23 @@ export async function installSkill(
     });
   } finally {
     state.skillsBusyKey = null;
+  }
+}
+
+export async function loadSkillsRegistry(state: SkillsState) {
+  state.registryLoading = true;
+  state.registryError = null;
+  try {
+    // Mock fetch
+    await new Promise(resolve => setTimeout(resolve, 500));
+    state.registryList = [
+      { id: "weather", name: "Weather", description: "Get weather forecasts", author: "OpenClaw" },
+      { id: "news", name: "News", description: "Search latest news", author: "OpenClaw" },
+      { id: "calculator", name: "Calculator", description: "Perform math calculations", author: "OpenClaw" },
+    ];
+  } catch (err) {
+    state.registryError = String(err);
+  } finally {
+    state.registryLoading = false;
   }
 }

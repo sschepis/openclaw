@@ -1,9 +1,11 @@
 import { type Api, getEnvApiKey, type Model } from "@mariozechner/pi-ai";
+import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
 import type { ModelProviderAuthMode, ModelProviderConfig } from "../config/types.js";
 import { formatCliCommand } from "../cli/command-format.js";
 import { getShellEnvAppliedKeys } from "../infra/shell-env.js";
+import { resolveOpenClawAgentDir } from "./agent-paths.js";
 import {
   type AuthProfileStore,
   ensureAuthProfileStore,
@@ -126,7 +128,7 @@ export type ResolvedProviderAuth = {
   apiKey?: string;
   profileId?: string;
   source: string;
-  mode: "api-key" | "oauth" | "token" | "aws-sdk";
+  mode: "api-key" | "oauth" | "token" | "aws-sdk" | "service-account";
 };
 
 export async function resolveApiKeyForProvider(params: {
@@ -155,7 +157,14 @@ export async function resolveApiKeyForProvider(params: {
       apiKey: resolved.apiKey,
       profileId,
       source: `profile:${profileId}`,
-      mode: mode === "oauth" ? "oauth" : mode === "token" ? "token" : "api-key",
+      mode:
+        mode === "oauth"
+          ? "oauth"
+          : mode === "token"
+            ? "token"
+            : mode === "service_account"
+              ? "service-account"
+              : "api-key",
     };
   }
 
@@ -184,7 +193,14 @@ export async function resolveApiKeyForProvider(params: {
           apiKey: resolved.apiKey,
           profileId: candidate,
           source: `profile:${candidate}`,
-          mode: mode === "oauth" ? "oauth" : mode === "token" ? "token" : "api-key",
+          mode:
+            mode === "oauth"
+              ? "oauth"
+              : mode === "token"
+                ? "token"
+                : mode === "service_account"
+                  ? "service-account"
+                  : "api-key",
         };
       }
     } catch {}
@@ -262,10 +278,23 @@ export function resolveEnvApiKey(provider: string): EnvApiKeyResult | null {
 
   if (normalized === "google-vertex") {
     const envKey = getEnvApiKey(normalized);
-    if (!envKey) {
-      return null;
+    if (envKey) {
+      return { apiKey: envKey, source: "gcloud adc" };
     }
-    return { apiKey: envKey, source: "gcloud adc" };
+    // Check for google.json file in agent dir
+    const agentDir = resolveOpenClawAgentDir();
+    const keyPath = path.join(agentDir, "google.json");
+    if (fs.existsSync(keyPath)) {
+      try {
+        const content = fs.readFileSync(keyPath, "utf8");
+        // Verify it looks like JSON
+        JSON.parse(content);
+        return { apiKey: content, source: "google.json" };
+      } catch {
+        // Ignore invalid file
+      }
+    }
+    return null;
   }
 
   if (normalized === "opencode") {

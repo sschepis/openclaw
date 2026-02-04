@@ -31,6 +31,8 @@ export type EmbeddedPiRunMeta = {
     name: string;
     arguments: string;
   }>;
+  /** List of unique tool names executed during the run. */
+  toolsUsed?: string[];
 };
 
 export type EmbeddedPiRunResult = {

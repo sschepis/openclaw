@@ -1,5 +1,5 @@
 import { html, nothing } from "lit";
-import type { GatewaySessionRow, SessionsListResult } from "../types";
+import type { GatewaySessionRow, SessionsListResult, CronJob } from "../types";
 import { formatAgo } from "../format";
 import { pathForTab } from "../navigation";
 import { formatSessionTokens } from "../presenter";
@@ -164,25 +164,12 @@ export function renderSessions(props: SessionsProps) {
         ${props.result ? `Store: ${props.result.path}` : ""}
       </div>
 
-      <div class="table" style="margin-top: 16px;">
-        <div class="table-head">
-          <div>Key</div>
-          <div>Label</div>
-          <div>Kind</div>
-          <div>Updated</div>
-          <div>Tokens</div>
-          <div>Thinking</div>
-          <div>Verbose</div>
-          <div>Reasoning</div>
-          <div>Actions</div>
-        </div>
+      <div class="session-grid">
         ${
           rows.length === 0
-            ? html`
-                <div class="muted">No sessions found.</div>
-              `
+            ? html`<div class="muted">No sessions found.</div>`
             : rows.map((row) =>
-                renderRow(row, props.basePath, props.onPatch, props.onDelete, props.loading),
+                renderSessionCard(row, props.basePath, props.onPatch, props.onDelete, props.loading),
               )
         }
       </div>
@@ -190,7 +177,28 @@ export function renderSessions(props: SessionsProps) {
   `;
 }
 
-function renderRow(
+function renderCronBadge(job: CronJob) {
+  const schedule = job.schedule;
+  let label = "Unknown";
+  if (schedule.kind === "every") {
+    const mins = Math.round(schedule.everyMs / 60000);
+    label = mins < 60 ? `${mins}m` : `${Math.round(mins / 60)}h`;
+  } else if (schedule.kind === "cron") {
+    label = schedule.expr;
+  } else if (schedule.kind === "at") {
+    label = new Date(schedule.atMs).toLocaleString();
+  }
+  
+  const state = job.enabled ? "active" : "disabled";
+  const icon = job.enabled ? "⚡" : "⏸️";
+
+  return html`<div class="session-cron-item" title="${job.name || "Cron Job"}">
+    <span class="session-cron-badge">${icon} ${label}</span>
+    <span style="opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${job.name || "Untitled"}</span>
+  </div>`;
+}
+
+function renderSessionCard(
   row: GatewaySessionRow,
   basePath: string,
   onPatch: SessionsProps["onPatch"],
@@ -211,70 +219,106 @@ function renderRow(
     : null;
 
   return html`
-    <div class="table-row">
-      <div class="mono">${
-        canLink ? html`<a href=${chatUrl} class="session-link">${displayName}</a>` : displayName
-      }</div>
-      <div>
-        <input
-          .value=${row.label ?? ""}
-          ?disabled=${disabled}
-          placeholder="(optional)"
-          @change=${(e: Event) => {
-            const value = (e.target as HTMLInputElement).value.trim();
-            onPatch(row.key, { label: value || null });
-          }}
-        />
+    <div class="session-card">
+      <div class="session-card-header">
+        <div>
+          <div>
+            ${canLink 
+              ? html`<a href=${chatUrl} class="session-card-title">${displayName}</a>` 
+              : html`<span class="session-card-title">${displayName}</span>`
+            }
+          </div>
+          <div class="session-card-subtitle">${row.kind} • Updated ${updated}</div>
+        </div>
+        ${row.modelProvider ? html`<span class="pill">${row.modelProvider}</span>` : nothing}
       </div>
-      <div>${row.kind}</div>
-      <div>${updated}</div>
-      <div>${formatSessionTokens(row)}</div>
-      <div>
-        <select
-          .value=${thinking}
-          ?disabled=${disabled}
-          @change=${(e: Event) => {
-            const value = (e.target as HTMLSelectElement).value;
-            onPatch(row.key, {
-              thinkingLevel: resolveThinkLevelPatchValue(value, isBinaryThinking),
-            });
-          }}
-        >
-          ${thinkLevels.map((level) => html`<option value=${level}>${level || "inherit"}</option>`)}
-        </select>
+
+      <div class="session-card-body">
+        <div class="field">
+           <input
+            .value=${row.label ?? ""}
+            ?disabled=${disabled}
+            placeholder="Label (optional)"
+            @change=${(e: Event) => {
+              const value = (e.target as HTMLInputElement).value.trim();
+              onPatch(row.key, { label: value || null });
+            }}
+          />
+        </div>
+
+        <div class="session-stat-row">
+          <span class="session-stat-label">Tokens</span>
+          <span class="session-stat-value">${formatSessionTokens(row)}</span>
+        </div>
+
+        <div class="session-stat-row" style="align-items: center">
+          <span class="session-stat-label">Thinking</span>
+           <select
+            style="padding: 2px 6px; font-size: 12px; height: auto;"
+            .value=${thinking}
+            ?disabled=${disabled}
+            @change=${(e: Event) => {
+              const value = (e.target as HTMLSelectElement).value;
+              onPatch(row.key, {
+                thinkingLevel: resolveThinkLevelPatchValue(value, isBinaryThinking),
+              });
+            }}
+          >
+            ${thinkLevels.map((level) => html`<option value=${level}>${level || "inherit"}</option>`)}
+          </select>
+        </div>
+
+        <div class="session-stat-row" style="align-items: center">
+           <span class="session-stat-label">Verbose</span>
+           <select
+            style="padding: 2px 6px; font-size: 12px; height: auto;"
+            .value=${verbose}
+            ?disabled=${disabled}
+            @change=${(e: Event) => {
+              const value = (e.target as HTMLSelectElement).value;
+              onPatch(row.key, { verboseLevel: value || null });
+            }}
+          >
+            ${VERBOSE_LEVELS.map(
+              (level) => html`<option value=${level.value}>${level.label}</option>`,
+            )}
+          </select>
+        </div>
+
+         <div class="session-stat-row" style="align-items: center">
+           <span class="session-stat-label">Reasoning</span>
+           <select
+            style="padding: 2px 6px; font-size: 12px; height: auto;"
+            .value=${reasoning}
+            ?disabled=${disabled}
+            @change=${(e: Event) => {
+              const value = (e.target as HTMLSelectElement).value;
+              onPatch(row.key, { reasoningLevel: value || null });
+            }}
+          >
+            ${REASONING_LEVELS.map(
+              (level) => html`<option value=${level}>${level || "inherit"}</option>`,
+            )}
+          </select>
+        </div>
+
+        ${row.cronJobs && row.cronJobs.length > 0 ? html`
+          <div class="session-cron-list">
+            <div class="session-cron-title">Active Tasks</div>
+            ${row.cronJobs.map(job => renderCronBadge(job))}
+          </div>
+        ` : nothing}
       </div>
-      <div>
-        <select
-          .value=${verbose}
-          ?disabled=${disabled}
-          @change=${(e: Event) => {
-            const value = (e.target as HTMLSelectElement).value;
-            onPatch(row.key, { verboseLevel: value || null });
-          }}
-        >
-          ${VERBOSE_LEVELS.map(
-            (level) => html`<option value=${level.value}>${level.label}</option>`,
-          )}
-        </select>
-      </div>
-      <div>
-        <select
-          .value=${reasoning}
-          ?disabled=${disabled}
-          @change=${(e: Event) => {
-            const value = (e.target as HTMLSelectElement).value;
-            onPatch(row.key, { reasoningLevel: value || null });
-          }}
-        >
-          ${REASONING_LEVELS.map(
-            (level) => html`<option value=${level}>${level || "inherit"}</option>`,
-          )}
-        </select>
-      </div>
-      <div>
-        <button class="btn danger" ?disabled=${disabled} @click=${() => onDelete(row.key)}>
+
+      <div class="session-card-actions">
+        <button class="btn danger btn--sm" ?disabled=${disabled} @click=${() => onDelete(row.key)}>
           Delete
         </button>
+        ${canLink ? html`
+          <a href=${chatUrl} class="btn primary btn--sm">
+             Open Chat
+          </a>
+        ` : nothing}
       </div>
     </div>
   `;

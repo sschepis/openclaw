@@ -271,3 +271,132 @@ img.chat-avatar {
     transform: translateY(0);
   }
 }
+
+/* =============================================
+   ACTION MESSAGES (system events like cron, session rename)
+   ============================================= */
+
+.chat-action-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 8px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  animation: fade-in 200ms ease-out;
+}
+
+.chat-action-message__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.chat-action-message__icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-action-message__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-action-message__title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.chat-action-message__description {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.chat-action-message__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.chat-action-message__detail {
+  display: flex;
+  gap: 4px;
+}
+
+.chat-action-message__detail-key {
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.chat-action-message__detail-value {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.chat-action-message__timestamp {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.7;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* Action message color variants */
+.chat-action-message.action--success {
+  background: var(--ok-subtle);
+  border-color: var(--ok);
+}
+
+.chat-action-message.action--success .chat-action-message__icon {
+  background: var(--ok);
+  color: white;
+}
+
+.chat-action-message.action--info {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+}
+
+.chat-action-message.action--info .chat-action-message__icon {
+  background: var(--accent);
+  color: white;
+}
+
+.chat-action-message.action--warning {
+  background: var(--warn-subtle);
+  border-color: var(--warn);
+}
+
+.chat-action-message.action--warning .chat-action-message__icon {
+  background: var(--warn);
+  color: white;
+}
+
+/* Light mode adjustments */
+:root[data-theme="light"] .chat-action-message.action--success .chat-action-message__icon {
+  background: var(--ok);
+}
+
+:root[data-theme="light"] .chat-action-message.action--info .chat-action-message__icon {
+  background: var(--accent);
+}
+
+:root[data-theme="light"] .chat-action-message.action--warning .chat-action-message__icon {
+  background: var(--warn);
+}

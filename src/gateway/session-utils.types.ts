@@ -1,5 +1,6 @@
 import type { NormalizedChatType } from "../channels/chat-type.js";
 import type { SessionEntry } from "../config/sessions.js";
+import type { CronJob } from "../cron/types.js";
 import type { DeliveryContext } from "../utils/delivery-context.js";
 
 export type GatewaySessionsDefaults = {
@@ -41,6 +42,7 @@ export type GatewaySessionRow = {
   lastChannel?: SessionEntry["lastChannel"];
   lastTo?: string;
   lastAccountId?: string;
+  cronJobs?: CronJob[];
 };
 
 export type GatewayAgentRow = {

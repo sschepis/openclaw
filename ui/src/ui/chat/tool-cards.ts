@@ -32,8 +32,9 @@ export function extractToolCards(message: unknown): ToolCard[] {
       continue;
     }
     const text = extractToolText(item);
+    const images = extractToolImages(item);
     const name = typeof item.name === "string" ? item.name : "tool";
-    cards.push({ kind: "result", name, text });
+    cards.push({ kind: "result", name, text, images });
   }
 
   if (isToolResultMessage(message) && !cards.some((card) => card.kind === "result")) {
@@ -42,7 +43,8 @@ export function extractToolCards(message: unknown): ToolCard[] {
       (typeof m.tool_name === "string" && m.tool_name) ||
       "tool";
     const text = extractTextCached(message) ?? undefined;
-    cards.push({ kind: "result", name, text });
+    const images = extractToolImages(m);
+    cards.push({ kind: "result", name, text, images });
   }
 
   return cards;
@@ -52,12 +54,15 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
   const display = resolveToolDisplay({ name: card.name, args: card.args });
   const detail = formatToolDetail(display);
   const hasText = Boolean(card.text?.trim());
+  const hasImages = (card.images?.length ?? 0) > 0;
 
   const canClick = Boolean(onOpenSidebar);
   const handleClick = canClick
     ? () => {
-        if (hasText) {
-          onOpenSidebar!(formatToolOutputForSidebar(card.text!));
+        const imagesMarkdown = card.images?.map(img => `![Screenshot](${img})`).join("\n\n") ?? "";
+        if (hasText || imagesMarkdown) {
+          const text = card.text ? formatToolOutputForSidebar(card.text) : "";
+          onOpenSidebar!(text + "\n\n" + imagesMarkdown);
           return;
         }
         const info = `## ${display.label}\n\n${
@@ -70,7 +75,7 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
   const isShort = hasText && (card.text?.length ?? 0) <= TOOL_INLINE_THRESHOLD;
   const showCollapsed = hasText && !isShort;
   const showInline = hasText && isShort;
-  const isEmpty = !hasText;
+  const isEmpty = !hasText && !hasImages;
 
   return html`
     <div
@@ -109,6 +114,13 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
               <div class="chat-tool-card__status-text muted">Completed</div>
             `
           : nothing
+      }
+      ${
+        card.images?.map(img => html`
+          <div class="chat-tool-card__image">
+            <img src=${img} alt="Tool output" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" />
+          </div>
+        `)
       }
       ${
         showCollapsed
@@ -153,4 +165,19 @@ function extractToolText(item: Record<string, unknown>): string | undefined {
     return item.content;
   }
   return undefined;
+}
+
+function extractToolImages(item: Record<string, unknown>): string[] {
+  const images: string[] = [];
+  // Standard tool result with content array
+  if (Array.isArray(item.content)) {
+    for (const part of item.content) {
+      if (part && typeof part === 'object') {
+        if (part.type === 'image' && typeof part.data === 'string') {
+           images.push(`data:${part.mimeType || 'image/png'};base64,${part.data}`);
+        }
+      }
+    }
+  }
+  return images;
 }

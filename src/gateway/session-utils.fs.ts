@@ -456,3 +456,49 @@ export function readSessionPreviewItemsFromTranscript(
 
   return [];
 }
+
+export function deleteMessageFromTranscript(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile: string | undefined,
+  messageId: string,
+): { ok: boolean; error?: string } {
+  const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile);
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) {
+    return { ok: false, error: "transcript file not found" };
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split(/\r?\n/);
+    const newLines: string[] = [];
+    let found = false;
+
+    for (const line of lines) {
+      if (!line.trim()) {
+        newLines.push(line);
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed?.id === messageId) {
+          found = true;
+          continue; // Skip this message
+        }
+      } catch {
+        // keep malformed lines
+      }
+      newLines.push(line);
+    }
+
+    if (!found) {
+      return { ok: false, error: "message not found" };
+    }
+
+    fs.writeFileSync(filePath, newLines.join("\n"), "utf-8");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

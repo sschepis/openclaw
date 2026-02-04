@@ -7,7 +7,9 @@ import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exe
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
 import type { Tab } from "./navigation";
 import type { ResolvedTheme, ThemeMode } from "./theme";
+import type { ActionMessage } from "./types/chat-types";
 import type {
+  ActivitiesListResult,
   AgentsListResult,
   ConfigSnapshot,
   ConfigUiHints,
@@ -42,7 +44,9 @@ import {
   handleAbortChat as handleAbortChatInternal,
   handleSendChat as handleSendChatInternal,
   removeQueuedMessage as removeQueuedMessageInternal,
+  handleDeleteMessage as handleDeleteMessageInternal,
 } from "./app-chat";
+import { callDebugMethod } from "./controllers/debug";
 import { DEFAULT_CRON_FORM, DEFAULT_LOG_LEVEL_FILTERS } from "./app-defaults";
 import { connectGateway as connectGatewayInternal } from "./app-gateway";
 import {
@@ -72,8 +76,45 @@ import {
 } from "./app-tool-stream";
 import { resolveInjectedAssistantIdentity } from "./assistant-identity";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity";
+import { type SpeechRecognition } from "./speech";
 import { loadSettings, type UiSettings } from "./storage";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types";
+import { SkillMessage } from "./controllers/skills";
+
+import {
+  handleNewSession as handleNewSessionInternal,
+  handleExportSession as handleExportSessionInternal,
+  handleSessionsPatch as handleSessionsPatchInternal,
+} from "./app-sessions";
+import {
+  handleToggleMic as handleToggleMicInternal,
+  handleSpeak as handleSpeakInternal,
+  handleFileUpload as handleFileUploadInternal,
+  handleGlobalKeydown as handleGlobalKeydownInternal,
+} from "./app-input";
+import {
+  handleToggleSettings as handleToggleSettingsInternal,
+  handleOpenSidebar as handleOpenSidebarInternal,
+  handleCloseSidebar as handleCloseSidebarInternal,
+  handleSplitRatioChange as handleSplitRatioChangeInternal,
+  handleGatewayUrlConfirm as handleGatewayUrlConfirmInternal,
+  handleGatewayUrlCancel as handleGatewayUrlCancelInternal,
+  handleExecApprovalDecision as handleExecApprovalDecisionInternal,
+  handleChatSelectQueueItem as handleChatSelectQueueItemInternal,
+  handleChatDropQueueItem as handleChatDropQueueItemInternal,
+  handleChatClearQueue as handleChatClearQueueInternal,
+  handleLogsFilterChange as handleLogsFilterChangeInternal,
+  handleLogsLevelFilterToggle as handleLogsLevelFilterToggleInternal,
+  handleLogsAutoFollowToggle as handleLogsAutoFollowToggleInternal,
+  handleCallDebugMethod as handleCallDebugMethodInternal,
+} from "./app-ui";
+import {
+  handleSkillsViewChange as handleSkillsViewChangeInternal,
+} from "./app-skills-handlers";
+import {
+  loadActivities as loadActivitiesInternal,
+  executeAction as executeActionInternal,
+} from "./controllers/activities";
 
 declare global {
   interface Window {
@@ -108,9 +149,9 @@ export class OpenClawApp extends LitElement {
   @state() hello: GatewayHelloOk | null = null;
   @state() lastError: string | null = null;
   @state() eventLog: EventLogEntry[] = [];
-  private eventLogBuffer: EventLogEntry[] = [];
+  eventLogBuffer: EventLogEntry[] = [];
   private toolStreamSyncTimer: number | null = null;
-  private sidebarCloseTimer: number | null = null;
+  sidebarCloseTimer: number | null = null;
 
   @state() assistantName = injectedAssistantIdentity.name;
   @state() assistantAvatar = injectedAssistantIdentity.avatar;
@@ -128,13 +169,19 @@ export class OpenClawApp extends LitElement {
   @state() compactionStatus: import("./app-tool-stream").CompactionStatus | null = null;
   @state() chatAvatarUrl: string | null = null;
   @state() chatThinkingLevel: string | null = null;
+  @state() thinkingState: import("./components/thinking-panel").ThinkingState | null = null;
   @state() chatQueue: ChatQueueItem[] = [];
   @state() chatAttachments: ChatAttachment[] = [];
+  @state() chatActionMessages: ActionMessage[] = [];
+  @state() mobileSessionsOpen = false;
+  @state() sessionSearchQuery = "";
   // Sidebar state for tool output viewing
   @state() sidebarOpen = false;
   @state() sidebarContent: string | null = null;
   @state() sidebarError: string | null = null;
   @state() splitRatio = this.settings.splitRatio;
+  @state() isListening = false;
+  @state() settingsOpen = false;
 
   @state() nodesLoading = false;
   @state() nodes: Array<Record<string, unknown>> = [];
@@ -190,7 +237,7 @@ export class OpenClawApp extends LitElement {
   @state() presenceLoading = false;
   @state() presenceEntries: PresenceEntry[] = [];
   @state() presenceError: string | null = null;
-  @state() presenceStatus: string | null = null;
+  @state() presenceStatus: StatusSummary | null = null;
 
   @state() agentsLoading = false;
   @state() agentsList: AgentsListResult | null = null;
@@ -203,6 +250,10 @@ export class OpenClawApp extends LitElement {
   @state() sessionsFilterLimit = "120";
   @state() sessionsIncludeGlobal = true;
   @state() sessionsIncludeUnknown = false;
+
+  @state() activitiesLoading = false;
+  @state() activitiesList: ActivitiesListResult | null = null;
+  @state() activitiesError: string | null = null;
 
   @state() cronLoading = false;
   @state() cronJobs: CronJob[] = [];
@@ -217,6 +268,10 @@ export class OpenClawApp extends LitElement {
   @state() skillsReport: SkillStatusReport | null = null;
   @state() skillsError: string | null = null;
   @state() skillsFilter = "";
+  @state() skillsView: "installed" | "registry" = "installed";
+  @state() registryLoading = false;
+  @state() registryError: string | null = null;
+  @state() registryList: import("./controllers/skills").RegistrySkill[] = [];
   @state() skillEdits: Record<string, string> = {};
   @state() skillsBusyKey: string | null = null;
   @state() skillMessages: Record<string, SkillMessage> = {};
@@ -246,25 +301,26 @@ export class OpenClawApp extends LitElement {
   @state() logsLimit = 500;
   @state() logsMaxBytes = 250_000;
   @state() logsAtBottom = true;
+  @state() chatUserNearBottom = true;
 
   client: GatewayBrowserClient | null = null;
-  private chatScrollFrame: number | null = null;
-  private chatScrollTimeout: number | null = null;
-  private chatHasAutoScrolled = false;
-  private chatUserNearBottom = true;
-  private nodesPollInterval: number | null = null;
-  private logsPollInterval: number | null = null;
-  private debugPollInterval: number | null = null;
-  private logsScrollFrame: number | null = null;
-  private toolStreamById = new Map<string, ToolStreamEntry>();
-  private toolStreamOrder: string[] = [];
+  chatScrollFrame: number | null = null;
+  chatScrollTimeout: number | null = null;
+  chatHasAutoScrolled = false;
+  nodesPollInterval: number | null = null;
+  logsPollInterval: number | null = null;
+  debugPollInterval: number | null = null;
+  logsScrollFrame: number | null = null;
+  toolStreamById = new Map<string, ToolStreamEntry>();
+  toolStreamOrder: string[] = [];
   refreshSessionsAfterChat = new Set<string>();
   basePath = "";
   private popStateHandler = () =>
     onPopStateInternal(this as unknown as Parameters<typeof onPopStateInternal>[0]);
-  private themeMedia: MediaQueryList | null = null;
-  private themeMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
+  themeMedia: MediaQueryList | null = null;
+  themeMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
   private topbarObserver: ResizeObserver | null = null;
+  recognition: SpeechRecognition | null = null;
 
   createRenderRoot() {
     return this;
@@ -273,6 +329,7 @@ export class OpenClawApp extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
+    window.addEventListener("keydown", this.handleGlobalKeydown);
   }
 
   protected firstUpdated() {
@@ -280,9 +337,17 @@ export class OpenClawApp extends LitElement {
   }
 
   disconnectedCallback() {
+    window.removeEventListener("keydown", this.handleGlobalKeydown);
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
+    if (this.recognition) {
+      this.recognition.abort();
+    }
     super.disconnectedCallback();
   }
+
+  private handleGlobalKeydown = (e: KeyboardEvent) => {
+    handleGlobalKeydownInternal(this, e);
+  };
 
   protected updated(changed: Map<PropertyKey, unknown>) {
     handleUpdated(this as unknown as Parameters<typeof handleUpdated>[0], changed);
@@ -316,6 +381,38 @@ export class OpenClawApp extends LitElement {
 
   resetChatScroll() {
     resetChatScrollInternal(this as unknown as Parameters<typeof resetChatScrollInternal>[0]);
+  }
+
+  handleToggleMic() {
+    handleToggleMicInternal(this);
+  }
+
+  handleToggleSettings() {
+    handleToggleSettingsInternal(this);
+  }
+
+  handleSkillsViewChange(view: "installed" | "registry") {
+    handleSkillsViewChangeInternal(this, view);
+  }
+
+  async handleSessionsPatch(key: string, patch: any) {
+    await handleSessionsPatchInternal(this, key, patch);
+  }
+
+  handleSpeak(text: string) {
+    handleSpeakInternal(text);
+  }
+
+  async handleFileUpload(file: File) {
+    handleFileUploadInternal(this, file);
+  }
+
+  async handleExportSession(key: string) {
+    await handleExportSessionInternal(this, key);
+  }
+
+  async handleNewSession() {
+    await handleNewSessionInternal(this);
   }
 
   async loadAssistantIdentity() {
@@ -364,6 +461,13 @@ export class OpenClawApp extends LitElement {
     );
   }
 
+  async handleDeleteMessage(messageId: string) {
+    await handleDeleteMessageInternal(
+      this as unknown as Parameters<typeof handleDeleteMessageInternal>[0],
+      messageId,
+    );
+  }
+
   async handleWhatsAppStart(force: boolean) {
     await handleWhatsAppStartInternal(this, force);
   }
@@ -409,76 +513,95 @@ export class OpenClawApp extends LitElement {
   }
 
   async handleExecApprovalDecision(decision: "allow-once" | "allow-always" | "deny") {
-    const active = this.execApprovalQueue[0];
-    if (!active || !this.client || this.execApprovalBusy) {
-      return;
-    }
-    this.execApprovalBusy = true;
-    this.execApprovalError = null;
-    try {
-      await this.client.request("exec.approval.resolve", {
-        id: active.id,
-        decision,
-      });
-      this.execApprovalQueue = this.execApprovalQueue.filter((entry) => entry.id !== active.id);
-    } catch (err) {
-      this.execApprovalError = `Exec approval failed: ${String(err)}`;
-    } finally {
-      this.execApprovalBusy = false;
-    }
+    await handleExecApprovalDecisionInternal(this, decision);
   }
 
   handleGatewayUrlConfirm() {
-    const nextGatewayUrl = this.pendingGatewayUrl;
-    if (!nextGatewayUrl) {
-      return;
-    }
-    this.pendingGatewayUrl = null;
-    applySettingsInternal(this as unknown as Parameters<typeof applySettingsInternal>[0], {
-      ...this.settings,
-      gatewayUrl: nextGatewayUrl,
-    });
-    this.connect();
+    handleGatewayUrlConfirmInternal(this);
   }
 
   handleGatewayUrlCancel() {
-    this.pendingGatewayUrl = null;
+    handleGatewayUrlCancelInternal(this);
   }
 
   // Sidebar handlers for tool output viewing
   handleOpenSidebar(content: string) {
-    if (this.sidebarCloseTimer != null) {
-      window.clearTimeout(this.sidebarCloseTimer);
-      this.sidebarCloseTimer = null;
-    }
-    this.sidebarContent = content;
-    this.sidebarError = null;
-    this.sidebarOpen = true;
+    handleOpenSidebarInternal(this, content);
   }
 
   handleCloseSidebar() {
-    this.sidebarOpen = false;
-    // Clear content after transition
-    if (this.sidebarCloseTimer != null) {
-      window.clearTimeout(this.sidebarCloseTimer);
-    }
-    this.sidebarCloseTimer = window.setTimeout(() => {
-      if (this.sidebarOpen) {
-        return;
-      }
-      this.sidebarContent = null;
-      this.sidebarError = null;
-      this.sidebarCloseTimer = null;
-    }, 200);
+    handleCloseSidebarInternal(this);
   }
 
   handleSplitRatioChange(ratio: number) {
-    const newRatio = Math.max(0.4, Math.min(0.7, ratio));
-    this.splitRatio = newRatio;
-    this.applySettings({ ...this.settings, splitRatio: newRatio });
+    handleSplitRatioChangeInternal(this, ratio);
+  }
+
+  handleChatSelectQueueItem(id: string) {
+    handleChatSelectQueueItemInternal(this, id);
+  }
+
+  handleChatDropQueueItem(id: string) {
+    handleChatDropQueueItemInternal(this, id);
+  }
+
+  handleChatClearQueue() {
+    handleChatClearQueueInternal(this);
+  }
+
+  handleLogsFilterChange(next: string) {
+    handleLogsFilterChangeInternal(this, next);
+  }
+
+  handleLogsLevelFilterToggle(level: LogLevel) {
+    handleLogsLevelFilterToggleInternal(this, level);
+  }
+
+  handleLogsAutoFollowToggle(next: boolean) {
+    handleLogsAutoFollowToggleInternal(this, next);
+  }
+
+  async handleCallDebugMethod(method: string, params: string) {
+    await handleCallDebugMethodInternal(this, method, params);
+  }
+
+  async loadActivities() {
+    await loadActivitiesInternal(this);
+  }
+
+  async handleActivityAction(sessionKey: string, actionId: string, parameters?: Record<string, unknown>) {
+    await executeActionInternal(this, sessionKey, actionId, parameters);
+  }
+
+  /**
+   * Adds an action message to the current chat session.
+   */
+  addActionMessage(action: ActionMessage) {
+    this.chatActionMessages = [...this.chatActionMessages, action];
+  }
+
+  /**
+   * Clears action messages for the current session.
+   */
+  clearActionMessages() {
+    this.chatActionMessages = [];
+  }
+
+  /**
+   * Handles renaming a session via in-place editing.
+   */
+  async handleRenameSession(key: string, newName: string) {
+    await handleSessionsPatchInternal(this, key, { label: newName });
+    // Add an action message about the rename
+    this.addActionMessage({
+      type: "session-renamed",
+      title: "Session renamed",
+      description: `Session renamed to "${newName}"`,
+      timestamp: Date.now(),
+    });
   }
 
   render() {
-    return renderApp(this);
+    return renderApp(this as any);
   }
 }

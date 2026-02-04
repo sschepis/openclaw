@@ -29,6 +29,7 @@ import {
   errorShape,
   formatValidationErrors,
   validateChatAbortParams,
+  validateChatDeleteParams,
   validateChatHistoryParams,
   validateChatInjectParams,
   validateChatSendParams,
@@ -36,6 +37,7 @@ import {
 import { getMaxChatHistoryMessagesBytes } from "../server-constants.js";
 import {
   capArrayByJsonBytes,
+  deleteMessageFromTranscript,
   loadSessionEntry,
   readSessionMessages,
   resolveSessionModelRef,
@@ -692,5 +694,53 @@ export const chatHandlers: GatewayRequestHandlers = {
     context.nodeSendToSession(p.sessionKey, "chat", chatPayload);
 
     respond(true, { ok: true, messageId });
+  },
+  "chat.delete": async ({ params, respond, context }) => {
+    if (!validateChatDeleteParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid chat.delete params: ${formatValidationErrors(validateChatDeleteParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const { sessionKey, messageId } = params as {
+      sessionKey: string;
+      messageId: string;
+    };
+
+    const { storePath, entry } = loadSessionEntry(sessionKey);
+    const sessionId = entry?.sessionId;
+
+    if (!sessionId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "session not found"));
+      return;
+    }
+
+    const res = deleteMessageFromTranscript(sessionId, storePath, entry?.sessionFile, messageId);
+    if (!res.ok) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.UNAVAILABLE, res.error ?? "failed to delete message"),
+      );
+      return;
+    }
+
+    // Broadcast update
+    const payload = {
+      runId: `delete-${messageId}`,
+      sessionKey,
+      seq: 0,
+      state: "final" as const,
+      message: { id: messageId, deleted: true }, // Signal deletion
+    };
+    context.broadcast("chat", payload);
+    context.nodeSendToSession(sessionKey, "chat", payload);
+
+    respond(true, { ok: true });
   },
 };

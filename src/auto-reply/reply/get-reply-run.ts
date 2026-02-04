@@ -41,6 +41,7 @@ import { applySessionHints } from "./body.js";
 import { buildGroupIntro } from "./groups.js";
 import { resolveQueueSettings } from "./queue.js";
 import { routeReply } from "./route-reply.js";
+import { generateSessionTitle } from "./session-title.js";
 import { ensureSkillSnapshot, prependSystemEvents } from "./session-updates.js";
 import { resolveTypingMode } from "./typing-mode.js";
 
@@ -401,6 +402,21 @@ export async function runPreparedReply(
       ...(isReasoningTagProvider(provider) ? { enforceFinalTag: true } : {}),
     },
   };
+
+  if (isNewSession && !sessionEntry?.displayName && baseBodyTrimmedRaw && storePath) {
+    void generateSessionTitle({
+      sessionKey,
+      storePath,
+      userMessage: baseBodyTrimmedRaw,
+      agentId,
+      agentDir,
+      config: cfg,
+      provider,
+      model,
+      defaultProvider,
+      defaultModel,
+    });
+  }
 
   return runReplyAgent({
     commandBody: prefixedCommandBody,

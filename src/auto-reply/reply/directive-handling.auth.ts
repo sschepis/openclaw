@@ -111,6 +111,12 @@ export const resolveAuthLabel = async (
           source: "",
         };
       }
+      if (profile.type === "service_account") {
+        return {
+          label: `${profileId} service-account${more}`,
+          source: "",
+        };
+      }
       const display = resolveAuthProfileDisplayLabel({ cfg, store, profileId });
       const label = display === profileId ? profileId : display;
       const exp =
@@ -166,6 +172,10 @@ export const resolveAuthLabel = async (
         }
         const suffix = flags.length > 0 ? ` (${flags.join(", ")})` : "";
         return `${profileId}=token:${maskApiKey(profile.token)}${suffix}`;
+      }
+      if (profile.type === "service_account") {
+        const suffix = flags.length > 0 ? ` (${flags.join(", ")})` : "";
+        return `${profileId}=service-account${suffix}`;
       }
       const display = resolveAuthProfileDisplayLabel({
         cfg,

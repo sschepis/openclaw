@@ -19,7 +19,12 @@ import {
   resolveContextWindowInfo,
 } from "../context-window-guard.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../defaults.js";
-import { FailoverError, resolveFailoverStatus } from "../failover-error.js";
+import {
+  FailoverError,
+  resolveFailoverStatus,
+  coerceToFailoverError,
+  isFailoverError,
+} from "../failover-error.js";
 import {
   ensureAuthProfileStore,
   getApiKeyForModel,
@@ -481,6 +486,12 @@ export async function runEmbeddedPiAgent(
               };
             }
             const promptFailoverReason = classifyFailoverReason(errorText);
+            let promptRetryAfterMs: number | undefined;
+            if (promptError) {
+              const fe = coerceToFailoverError(promptError);
+              promptRetryAfterMs = fe?.retryAfterMs;
+            }
+
             if (promptFailoverReason && promptFailoverReason !== "timeout" && lastProfileId) {
               await markAuthProfileFailure({
                 store: authStore,
@@ -488,6 +499,7 @@ export async function runEmbeddedPiAgent(
                 reason: promptFailoverReason,
                 cfg: params.config,
                 agentDir: params.agentDir,
+                cooldownMs: promptRetryAfterMs,
               });
             }
             if (
@@ -660,6 +672,9 @@ export async function runEmbeddedPiAgent(
               agentDir: params.agentDir,
             });
           }
+          const toolsUsed = attempt.toolMetas?.map((m) => m.toolName) ?? [];
+          const uniqueTools = Array.from(new Set(toolsUsed));
+
           return {
             payloads: payloads.length ? payloads : undefined,
             meta: {
@@ -667,6 +682,7 @@ export async function runEmbeddedPiAgent(
               agentMeta,
               aborted,
               systemPromptReport: attempt.systemPromptReport,
+              toolsUsed: uniqueTools.length > 0 ? uniqueTools : undefined,
               // Handle client tool calls (OpenResponses hosted tools)
               stopReason: attempt.clientToolCall ? "tool_calls" : undefined,
               pendingToolCalls: attempt.clientToolCall

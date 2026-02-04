@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { CronJob } from "../cron/types.js";
 import type {
   GatewayAgentRow,
   GatewaySessionRow,
@@ -40,6 +41,7 @@ export {
   readSessionPreviewItemsFromTranscript,
   readSessionMessages,
   resolveSessionTranscriptCandidates,
+  deleteMessageFromTranscript,
 } from "./session-utils.fs.js";
 export type {
   GatewayAgentRow,
@@ -543,8 +545,9 @@ export function listSessionsFromStore(params: {
   storePath: string;
   store: Record<string, SessionEntry>;
   opts: import("./protocol/index.js").SessionsListParams;
+  cronJobs?: CronJob[];
 }): SessionsListResult {
-  const { cfg, storePath, store, opts } = params;
+  const { cfg, storePath, store, opts, cronJobs } = params;
   const now = Date.now();
 
   const includeGlobal = opts.includeGlobal === true;
@@ -623,6 +626,22 @@ export function listSessionsFromStore(params: {
         entry?.label ??
         originLabel;
       const deliveryFields = normalizeSessionDeliveryFields(entry);
+
+      let associatedCronJobs: CronJob[] | undefined;
+      if (cronJobs && cronJobs.length > 0) {
+        if (key === "global") {
+          associatedCronJobs = cronJobs.filter((j) => !j.agentId);
+        } else {
+          const parsed = parseAgentSessionKey(key);
+          if (parsed?.agentId) {
+            const normalized = normalizeAgentId(parsed.agentId);
+            associatedCronJobs = cronJobs.filter(
+              (j) => j.agentId && normalizeAgentId(j.agentId) === normalized,
+            );
+          }
+        }
+      }
+
       return {
         key,
         entry,
@@ -655,6 +674,8 @@ export function listSessionsFromStore(params: {
         lastChannel: deliveryFields.lastChannel ?? entry?.lastChannel,
         lastTo: deliveryFields.lastTo ?? entry?.lastTo,
         lastAccountId: deliveryFields.lastAccountId ?? entry?.lastAccountId,
+        cronJobs:
+          associatedCronJobs && associatedCronJobs.length > 0 ? associatedCronJobs : undefined,
       };
     })
     .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));

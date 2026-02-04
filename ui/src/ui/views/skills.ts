@@ -1,5 +1,5 @@
 import { html, nothing } from "lit";
-import type { SkillMessageMap } from "../controllers/skills";
+import type { SkillMessageMap, RegistrySkill } from "../controllers/skills";
 import type { SkillStatusEntry, SkillStatusReport } from "../types";
 import { clampText } from "../format";
 
@@ -11,17 +11,23 @@ export type SkillsProps = {
   edits: Record<string, string>;
   busyKey: string | null;
   messages: SkillMessageMap;
+  view: "installed" | "registry";
+  registryLoading?: boolean;
+  registryError?: string | null;
+  registryList?: RegistrySkill[];
   onFilterChange: (next: string) => void;
   onRefresh: () => void;
   onToggle: (skillKey: string, enabled: boolean) => void;
   onEdit: (skillKey: string, value: string) => void;
   onSaveKey: (skillKey: string) => void;
   onInstall: (skillKey: string, name: string, installId: string) => void;
+  onViewChange: (view: "installed" | "registry") => void;
 };
 
 export function renderSkills(props: SkillsProps) {
   const skills = props.report?.skills ?? [];
   const filter = props.filter.trim().toLowerCase();
+  
   const filtered = filter
     ? skills.filter((skill) =>
         [skill.name, skill.description, skill.source].join(" ").toLowerCase().includes(filter),
@@ -35,11 +41,72 @@ export function renderSkills(props: SkillsProps) {
           <div class="card-title">Skills</div>
           <div class="card-sub">Bundled, managed, and workspace skills.</div>
         </div>
-        <button class="btn" ?disabled=${props.loading} @click=${props.onRefresh}>
-          ${props.loading ? "Loading…" : "Refresh"}
-        </button>
+        <div class="row">
+          <div class="segmented-control">
+            <button 
+              class="btn ${props.view === "installed" ? "active" : ""}"
+              @click=${() => props.onViewChange("installed")}
+            >
+              Installed
+            </button>
+            <button 
+              class="btn ${props.view === "registry" ? "active" : ""}"
+              @click=${() => props.onViewChange("registry")}
+            >
+              Registry
+            </button>
+          </div>
+          <button class="btn" ?disabled=${props.loading} @click=${props.onRefresh}>
+            ${props.loading ? "Loading…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
+      ${props.view === "registry" 
+        ? renderRegistry(props)
+        : renderInstalled(props, filtered)
+      }
+    </section>
+  `;
+}
+
+function renderRegistry(props: SkillsProps) {
+  if (props.registryLoading) {
+    return html`<div class="muted" style="margin-top: 16px">Loading registry...</div>`;
+  }
+  if (props.registryError) {
+    return html`<div class="callout danger" style="margin-top: 16px">${props.registryError}</div>`;
+  }
+  
+  const list = props.registryList ?? [];
+  if (list.length === 0) {
+    return html`<div class="muted" style="margin-top: 16px">No skills in registry.</div>`;
+  }
+
+  return html`
+    <div class="list" style="margin-top: 16px;">
+      ${list.map(skill => html`
+        <div class="list-item">
+          <div class="list-main">
+            <div class="list-title">${skill.name}</div>
+            <div class="list-sub">${skill.description}</div>
+            <div class="chip-row" style="margin-top: 6px;">
+              <span class="chip">${skill.author}</span>
+            </div>
+          </div>
+          <div class="list-meta">
+            <button class="btn primary" @click=${() => alert("Install logic would go here")}>
+              Install
+            </button>
+          </div>
+        </div>
+      `)}
+    </div>
+  `;
+}
+
+function renderInstalled(props: SkillsProps, filtered: SkillStatusEntry[]) {
+  return html`
       <div class="filters" style="margin-top: 14px;">
         <label class="field" style="flex: 1;">
           <span>Filter</span>
@@ -69,7 +136,6 @@ export function renderSkills(props: SkillsProps) {
             </div>
           `
       }
-    </section>
   `;
 }
 

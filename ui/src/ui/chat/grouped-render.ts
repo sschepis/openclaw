@@ -1,7 +1,8 @@
 import { html, nothing } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { AssistantIdentity } from "../assistant-identity";
-import type { MessageGroup } from "../types/chat-types";
+import { icons } from "../icons";
+import type { ActionMessage, MessageGroup } from "../types/chat-types";
 import { toSanitizedMarkdownHtml } from "../markdown";
 import { renderCopyAsMarkdownButton } from "./copy-as-markdown";
 import {
@@ -91,6 +92,7 @@ export function renderStreamingGroup(
             content: [{ type: "text", text }],
             timestamp: startedAt,
           },
+          "stream:active",
           { isStreaming: true, showReasoning: false },
           onOpenSidebar,
         )}
@@ -107,6 +109,8 @@ export function renderMessageGroup(
   group: MessageGroup,
   opts: {
     onOpenSidebar?: (content: string) => void;
+    onDeleteMessage?: (id: string) => void;
+    onSpeak?: (text: string) => void;
     showReasoning: boolean;
     assistantName?: string;
     assistantAvatar?: string | null;
@@ -137,11 +141,14 @@ export function renderMessageGroup(
         ${group.messages.map((item, index) =>
           renderGroupedMessage(
             item.message,
+            item.key,
             {
               isStreaming: group.isStreaming && index === group.messages.length - 1,
               showReasoning: opts.showReasoning,
             },
             opts.onOpenSidebar,
+            opts.onDeleteMessage,
+            opts.onSpeak,
           ),
         )}
         <div class="chat-group-footer">
@@ -217,8 +224,11 @@ function renderMessageImages(images: ImageBlock[]) {
 
 function renderGroupedMessage(
   message: unknown,
+  key: string,
   opts: { isStreaming: boolean; showReasoning: boolean },
   onOpenSidebar?: (content: string) => void,
+  onDeleteMessage?: (id: string) => void,
+  onSpeak?: (text: string) => void,
 ) {
   const m = message as Record<string, unknown>;
   const role = typeof m.role === "string" ? m.role : "unknown";
@@ -242,6 +252,9 @@ function renderGroupedMessage(
   const markdown = markdownBase;
   const canCopyMarkdown = role === "assistant" && Boolean(markdown?.trim());
 
+  // Extract ID from key (msg:ID or similar)
+  const messageId = key.startsWith("msg:") ? key.slice(4).split(":")[0] : null;
+
   const bubbleClasses = [
     "chat-bubble",
     canCopyMarkdown ? "has-copy" : "",
@@ -261,7 +274,31 @@ function renderGroupedMessage(
 
   return html`
     <div class="${bubbleClasses}">
-      ${canCopyMarkdown ? renderCopyAsMarkdownButton(markdown!) : nothing}
+      <div class="chat-actions">
+        ${canCopyMarkdown ? renderCopyAsMarkdownButton(markdown!) : nothing}
+        ${onSpeak && markdown
+          ? html`
+              <button
+                class="chat-action-btn"
+                title="Speak message"
+                @click=${() => onSpeak(markdown!)}
+              >
+                ${icons.volume2}
+              </button>
+            `
+          : nothing}
+        ${messageId && onDeleteMessage
+          ? html`
+              <button
+                class="chat-action-btn delete"
+                title="Delete message"
+                @click=${() => onDeleteMessage(messageId)}
+              >
+                ${icons.trash}
+              </button>
+            `
+          : nothing}
+      </div>
       ${renderMessageImages(images)}
       ${
         reasoningMarkdown
@@ -276,6 +313,69 @@ function renderGroupedMessage(
           : nothing
       }
       ${toolCards.map((card) => renderToolCardSidebar(card, onOpenSidebar))}
+    </div>
+  `;
+}
+
+/**
+ * Renders an action message (e.g., cron job created, session renamed).
+ * These are visually distinct from regular chat messages.
+ */
+export function renderActionMessage(action: ActionMessage) {
+  const timestamp = new Date(action.timestamp).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  // Choose icon and color based on action type
+  const iconMap: Record<ActionMessage["type"], typeof icons.calendarClock> = {
+    "cron-created": icons.calendarClock,
+    "cron-updated": icons.clock,
+    "cron-removed": icons.trash,
+    "session-renamed": icons.pencil,
+    generic: icons.info,
+  };
+
+  const colorClassMap: Record<ActionMessage["type"], string> = {
+    "cron-created": "action--success",
+    "cron-updated": "action--info",
+    "cron-removed": "action--warning",
+    "session-renamed": "action--info",
+    generic: "action--info",
+  };
+
+  const icon = iconMap[action.type] ?? icons.info;
+  const colorClass = colorClassMap[action.type] ?? "action--info";
+
+  // Format details if present
+  const detailEntries = action.details
+    ? Object.entries(action.details).filter(([, v]) => v !== undefined)
+    : [];
+
+  return html`
+    <div class="chat-action-message ${colorClass} fade-in">
+      <div class="chat-action-message__icon">${icon}</div>
+      <div class="chat-action-message__content">
+        <div class="chat-action-message__title">${action.title}</div>
+        ${action.description
+          ? html`<div class="chat-action-message__description">${action.description}</div>`
+          : nothing}
+        ${detailEntries.length > 0
+          ? html`
+              <div class="chat-action-message__details">
+                ${detailEntries.map(
+                  ([key, value]) => html`
+                    <span class="chat-action-message__detail">
+                      <span class="chat-action-message__detail-key">${key}:</span>
+                      <span class="chat-action-message__detail-value">${value}</span>
+                    </span>
+                  `,
+                )}
+              </div>
+            `
+          : nothing}
+      </div>
+      <div class="chat-action-message__timestamp">${timestamp}</div>
     </div>
   `;
 }

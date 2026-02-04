@@ -76,6 +76,59 @@ const OLLAMA_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
+const LMSTUDIO_BASE_URL = "http://127.0.0.1:1234/v1";
+const LMSTUDIO_API_BASE_URL = "http://127.0.0.1:1234";
+const LMSTUDIO_DEFAULT_CONTEXT_WINDOW = 32768; // Conservative default
+const LMSTUDIO_DEFAULT_MAX_TOKENS = -1; // -1 means "context window"
+const LMSTUDIO_DEFAULT_COST = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+
+interface LMStudioModel {
+  id: string;
+  object: string;
+  owned_by: string;
+}
+
+interface LMStudioModelsResponse {
+  data: LMStudioModel[];
+}
+
+async function discoverLMStudioModels(): Promise<ModelDefinitionConfig[]> {
+  // Skip LMStudio discovery in test environments
+  if (process.env.VITEST || process.env.NODE_ENV === "test") {
+    return [];
+  }
+  try {
+    const response = await fetch(`${LMSTUDIO_BASE_URL}/models`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const data = (await response.json()) as LMStudioModelsResponse;
+    if (!data.data || data.data.length === 0) {
+      return [];
+    }
+    return data.data.map((model) => {
+      return {
+        id: model.id,
+        name: model.id,
+        reasoning: false,
+        input: ["text"],
+        cost: LMSTUDIO_DEFAULT_COST,
+        contextWindow: LMSTUDIO_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: LMSTUDIO_DEFAULT_MAX_TOKENS,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 interface OllamaModel {
   name: string;
   modified_at: string;
@@ -394,6 +447,15 @@ async function buildOllamaProvider(): Promise<ProviderConfig> {
   };
 }
 
+async function buildLMStudioProvider(): Promise<ProviderConfig> {
+  const models = await discoverLMStudioModels();
+  return {
+    baseUrl: LMSTUDIO_BASE_URL,
+    api: "openai-completions",
+    models,
+  };
+}
+
 export async function resolveImplicitProviders(params: {
   agentDir: string;
 }): Promise<ModelsConfig["providers"]> {
@@ -459,6 +521,17 @@ export async function resolveImplicitProviders(params: {
     resolveApiKeyFromProfiles({ provider: "ollama", store: authStore });
   if (ollamaKey) {
     providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
+  }
+
+  // LMStudio provider - auto-discover if running or explicitly configured
+  const lmstudioKey =
+    resolveEnvApiKeyVarName("lmstudio") ??
+    resolveApiKeyFromProfiles({ provider: "lmstudio", store: authStore });
+  // LMStudio usually doesn't need a key, but allow one if provided.
+  // If no key, we still attempt discovery if the service is running.
+  const lmstudioConfig = await buildLMStudioProvider();
+  if (lmstudioKey || lmstudioConfig.models.length > 0) {
+    providers.lmstudio = { ...lmstudioConfig, apiKey: lmstudioKey ?? "lm-studio" };
   }
 
   return providers;

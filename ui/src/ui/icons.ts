@@ -103,6 +103,19 @@ export const icons = {
       <path d="m6 6 12 12" />
     </svg>
   `,
+  plus: html`
+    <svg viewBox="0 0 24 24">
+      <line x1="12" x2="12" y1="5" y2="19" />
+      <line x1="5" x2="19" y1="12" y2="12" />
+    </svg>
+  `,
+  trash: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  `,
   check: html`
     <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
   `,
@@ -146,6 +159,18 @@ export const icons = {
       <path d="m4.9 19.1 2.9-2.9" />
       <path d="M2 12h4" />
       <path d="m4.9 4.9 2.9 2.9" />
+    </svg>
+  `,
+  activity: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  `,
+  layers: html`
+    <svg viewBox="0 0 24 24">
+      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+      <path d="m22 12-8.58 3.9a2 2 0 0 1-1.66 0L2.6 12" />
+      <path d="m22 17-8.58 3.9a2 2 0 0 1-1.66 0L2.6 17" />
     </svg>
   `,
 
@@ -220,6 +245,78 @@ export const icons = {
       <path
         d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.076.874.54 1.02 1.02a2.5 2.5 0 1 0 3.237-3.237c-.48-.146-.944-.505-1.02-1.02a.98.98 0 0 1 .303-.917l1.526-1.526A2.402 2.402 0 0 1 11.998 2c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.236 3.236c-.464.18-.894.527-.967 1.02Z"
       />
+    </svg>
+  `,
+  arrowDown: html`
+    <svg viewBox="0 0 24 24">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <polyline points="19 12 12 19 5 12"></polyline>
+    </svg>
+  `,
+  mic: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+      <line x1="12" y1="19" x2="12" y2="23"></line>
+      <line x1="8" y1="23" x2="16" y2="23"></line>
+    </svg>
+  `,
+  micOff: html`
+    <svg viewBox="0 0 24 24">
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path>
+      <line x1="15" y1="9.34" x2="15" y2="4a3 3 0 0 0-5.94-.6"></line>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+      <line x1="12" y1="19" x2="12" y2="23"></line>
+      <line x1="8" y1="23" x2="16" y2="23"></line>
+    </svg>
+  `,
+  volume2: html`
+    <svg viewBox="0 0 24 24">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+    </svg>
+  `,
+  download: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline points="7 10 12 15 17 10"></polyline>
+      <line x1="12" y1="15" x2="12" y2="3"></line>
+    </svg>
+  `,
+  clock: html`
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+  `,
+  calendarClock: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"></path>
+      <path d="M16 2v4"></path>
+      <path d="M8 2v4"></path>
+      <path d="M3 10h5"></path>
+      <path d="M17.5 17.5 16 16.3V14"></path>
+      <circle cx="16" cy="16" r="6"></circle>
+    </svg>
+  `,
+  pencil: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+      <path d="m15 5 4 4"></path>
+    </svg>
+  `,
+  checkCircle: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+  `,
+  info: html`
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
     </svg>
   `,
 } as const;

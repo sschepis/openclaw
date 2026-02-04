@@ -2,9 +2,10 @@ import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import type { SessionsListResult } from "../types";
-import type { ChatItem, MessageGroup } from "../types/chat-types";
+import type { ActionMessage, ChatItem, MessageGroup } from "../types/chat-types";
 import type { ChatAttachment, ChatQueueItem } from "../ui-types";
 import {
+  renderActionMessage,
   renderMessageGroup,
   renderReadingIndicatorGroup,
   renderStreamingGroup,
@@ -12,6 +13,8 @@ import {
 import { normalizeMessage, normalizeRoleForGrouping } from "../chat/message-normalizer";
 import { icons } from "../icons";
 import { renderMarkdownSidebar } from "./markdown-sidebar";
+import { renderChatSessions } from "./chat-sessions";
+import { renderThinkingPanel, type ThinkingState } from "../components/thinking-panel";
 import "../components/resizable-divider";
 
 export type CompactionIndicatorStatus = {
@@ -28,9 +31,11 @@ export type ChatProps = {
   loading: boolean;
   sending: boolean;
   canAbort?: boolean;
+  thinkingState?: ThinkingState | null;
   compactionStatus?: CompactionIndicatorStatus | null;
   messages: unknown[];
   toolMessages: unknown[];
+  actionMessages?: ActionMessage[];
   stream: string | null;
   streamStartedAt: number | null;
   assistantAvatarUrl?: string | null;
@@ -61,10 +66,29 @@ export type ChatProps = {
   onAbort?: () => void;
   onQueueRemove: (id: string) => void;
   onNewSession: () => void;
+  onDeleteSession?: (key: string) => void;
+  onExportSession?: (key: string) => void;
+  onDeleteMessage?: (id: string) => void;
+  onRenameSession?: (key: string, newName: string) => void;
+  // Mobile sidebar state
+  mobileSessionsOpen?: boolean;
+  onToggleMobileSessions?: () => void;
+  // Session search
+  sessionSearchQuery?: string;
+  onSessionSearchChange?: (query: string) => void;
   onOpenSidebar?: (content: string) => void;
   onCloseSidebar?: () => void;
   onSplitRatioChange?: (ratio: number) => void;
   onChatScroll?: (event: Event) => void;
+  userNearBottom?: boolean;
+  onScrollToBottom?: () => void;
+  // Voice interface
+  isListening?: boolean;
+  onToggleMic?: () => void;
+  onSpeak?: (text: string) => void;
+  // File upload
+  onFileUpload?: (file: File) => void;
+  onSettings?: () => void;
 };
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
@@ -105,6 +129,66 @@ function renderCompactionIndicator(status: CompactionIndicatorStatus | null | un
 
 function generateAttachmentId(): string {
   return `att-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/**
+ * Renders an editable session title that allows in-place editing on click.
+ * Uses a contenteditable span that commits changes on blur or Enter key.
+ */
+function renderEditableSessionTitle(
+  displayName: string,
+  sessionKey: string,
+  onRename?: (key: string, newName: string) => void,
+) {
+  if (!onRename) {
+    // If no rename handler, just render a static title
+    return html`<span class="chat-session-title" style="font-weight: 600;">${displayName}</span>`;
+  }
+
+  const handleKeydown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      target.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      target.textContent = displayName;
+      target.blur();
+    }
+  };
+
+  const handleBlur = (e: FocusEvent) => {
+    const target = e.target as HTMLElement;
+    const newName = target.textContent?.trim() ?? "";
+    if (newName && newName !== displayName) {
+      onRename(sessionKey, newName);
+    } else {
+      // Restore original name if empty or unchanged
+      target.textContent = displayName;
+    }
+  };
+
+  const handleFocus = (e: FocusEvent) => {
+    const target = e.target as HTMLElement;
+    // Select all text on focus for easy replacement
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  };
+
+  return html`
+    <span
+      class="chat-session-title chat-session-title--editable"
+      contenteditable="true"
+      spellcheck="false"
+      @keydown=${handleKeydown}
+      @blur=${handleBlur}
+      @focus=${handleFocus}
+      title="Click to edit session name"
+    >${displayName}</span>
+  `;
 }
 
 function handlePaste(e: ClipboardEvent, props: ChatProps) {
@@ -203,6 +287,9 @@ export function renderChat(props: ChatProps) {
 
   const splitRatio = props.splitRatio ?? 0.6;
   const sidebarOpen = Boolean(props.sidebarOpen && props.onCloseSidebar);
+  const chatItems = buildChatItems(props);
+  const showEmptyState = !props.loading && chatItems.length === 0;
+
   const thread = html`
     <div
       class="chat-thread"
@@ -213,12 +300,34 @@ export function renderChat(props: ChatProps) {
       ${
         props.loading
           ? html`
-              <div class="muted">Loading chat…</div>
+              <div style="padding: 20px; display: grid; gap: 20px;">
+                ${[1, 2, 3].map(() => html`
+                  <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div class="skeleton skeleton-circle" style="width: 32px; height: 32px; flex-shrink: 0;"></div>
+                    <div style="flex: 1; display: grid; gap: 8px;">
+                      <div class="skeleton skeleton-text" style="width: 120px;"></div>
+                      <div class="skeleton skeleton-text"></div>
+                      <div class="skeleton skeleton-text"></div>
+                    </div>
+                  </div>
+                `)}
+              </div>
+            `
+          : nothing
+      }
+      ${
+        showEmptyState
+          ? html`
+              <div class="chat-empty-state">
+                <div class="chat-empty-state__icon">${icons.messageSquare}</div>
+                <div class="chat-empty-state__title">Start a new conversation</div>
+                <div class="chat-empty-state__sub">Ask questions, generate code, or just chat.</div>
+              </div>
             `
           : nothing
       }
       ${repeat(
-        buildChatItems(props),
+        chatItems,
         (item) => item.key,
         (item) => {
           if (item.kind === "reading-indicator") {
@@ -234,9 +343,14 @@ export function renderChat(props: ChatProps) {
             );
           }
 
+          if (item.kind === "action") {
+            return renderActionMessage(item.action);
+          }
+
           if (item.kind === "group") {
             return renderMessageGroup(item, {
               onOpenSidebar: props.onOpenSidebar,
+              onDeleteMessage: props.onDeleteMessage,
               showReasoning,
               assistantName: props.assistantName,
               assistantAvatar: assistantIdentity.avatar,
@@ -250,32 +364,93 @@ export function renderChat(props: ChatProps) {
   `;
 
   return html`
-    <section class="card chat">
-      ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
+    <section class="card chat chat-layout-wrapper">
+      <div class="chat-sessions-pane ${props.mobileSessionsOpen ? "chat-sessions-pane--open" : ""}">
+        ${renderChatSessions({
+          sessions: props.sessions,
+          activeSessionKey: props.sessionKey,
+          onSelect: (key) => {
+            props.onSessionKeyChange(key);
+            if (props.mobileSessionsOpen && props.onToggleMobileSessions) {
+              props.onToggleMobileSessions();
+            }
+          },
+          onNewSession: () => {
+            props.onNewSession();
+            if (props.mobileSessionsOpen && props.onToggleMobileSessions) {
+              props.onToggleMobileSessions();
+            }
+          },
+          onDeleteSession: props.onDeleteSession,
+          loading: props.loading && !props.sessions,
+          searchQuery: props.sessionSearchQuery ?? "",
+          onSearchChange: props.onSessionSearchChange,
+          mobileOpen: props.mobileSessionsOpen,
+          onCloseMobile: props.onToggleMobileSessions,
+        })}
+      </div>
 
-      ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
-
-      ${renderCompactionIndicator(props.compactionStatus)}
-
-      ${
-        props.focusMode
-          ? html`
+      <div class="chat-main-pane">
+        <div class="chat-header">
+          <div class="chat-header__left">
             <button
-              class="chat-focus-exit"
-              type="button"
-              @click=${props.onToggleFocusMode}
-              aria-label="Exit focus mode"
-              title="Exit focus mode"
+              class="btn--icon chat-mobile-toggle"
+              @click=${props.onToggleMobileSessions}
+              aria-label="Open sessions"
             >
-              ${icons.x}
+              ${icons.menu}
             </button>
-          `
-          : nothing
-      }
+            ${renderEditableSessionTitle(
+              activeSession?.displayName ?? "New Session",
+              props.sessionKey,
+              props.onRenameSession,
+            )}
+          </div>
+          <div class="chat-header__right">
+            <button
+              class="btn--icon"
+              @click=${props.onSettings}
+              title="Session Settings"
+            >
+              ${icons.settings}
+            </button>
+          </div>
+        </div>
 
-      <div
-        class="chat-split-container ${sidebarOpen ? "chat-split-container--open" : ""}"
-      >
+        ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
+
+        ${props.error ? html`
+          <div class="callout danger" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <span>${props.error}</span>
+            <button class="btn sm" @click=${props.onSend} ?disabled=${props.sending}>
+              ${icons.zap} Retry
+            </button>
+          </div>
+        ` : nothing}
+
+        ${props.thinkingState ? renderThinkingPanel(props.thinkingState) : nothing}
+
+        ${renderCompactionIndicator(props.compactionStatus)}
+
+        ${
+          props.focusMode
+            ? html`
+              <button
+                class="chat-focus-exit"
+                type="button"
+                @click=${props.onToggleFocusMode}
+                aria-label="Exit focus mode"
+                title="Exit focus mode"
+              >
+                ${icons.x}
+              </button>
+            `
+            : nothing
+        }
+
+        <div
+          class="chat-split-container ${sidebarOpen ? "chat-split-container--open" : ""}"
+        >
         <div
           class="chat-main"
           style="flex: ${sidebarOpen ? `0 0 ${splitRatio * 100}%` : "1 1 100%"}"
@@ -340,57 +515,114 @@ export function renderChat(props: ChatProps) {
           : nothing
       }
 
-      <div class="chat-compose">
-        ${renderAttachmentPreview(props)}
-        <div class="chat-compose__row">
-          <label class="field chat-compose__field">
-            <span>Message</span>
-            <textarea
-              ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
-              .value=${props.draft}
-              ?disabled=${!props.connected}
-              @keydown=${(e: KeyboardEvent) => {
-                if (e.key !== "Enter") {
-                  return;
-                }
-                if (e.isComposing || e.keyCode === 229) {
-                  return;
-                }
-                if (e.shiftKey) {
-                  return;
-                } // Allow Shift+Enter for line breaks
-                if (!props.connected) {
-                  return;
-                }
-                e.preventDefault();
-                if (canCompose) {
-                  props.onSend();
-                }
-              }}
-              @input=${(e: Event) => {
-                const target = e.target as HTMLTextAreaElement;
-                adjustTextareaHeight(target);
-                props.onDraftChange(target.value);
-              }}
-              @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
-              placeholder=${composePlaceholder}
-            ></textarea>
-          </label>
-          <div class="chat-compose__actions">
-            <button
-              class="btn"
-              ?disabled=${!props.connected || (!canAbort && props.sending)}
-              @click=${canAbort ? props.onAbort : props.onNewSession}
-            >
-              ${canAbort ? "Stop" : "New session"}
-            </button>
-            <button
-              class="btn primary"
-              ?disabled=${!props.connected}
-              @click=${props.onSend}
-            >
-              ${isBusy ? "Queue" : "Send"}<kbd class="btn-kbd">↵</kbd>
-            </button>
+        ${
+          !props.userNearBottom && props.onScrollToBottom
+            ? html`
+              <button
+                class="chat-scroll-bottom"
+                @click=${props.onScrollToBottom}
+                aria-label="Scroll to bottom"
+              >
+                ${icons.arrowDown}
+              </button>
+            `
+            : nothing
+        }
+
+        <div class="chat-compose">
+          ${renderAttachmentPreview(props)}
+          <div class="chat-compose__row">
+            ${props.onFileUpload 
+              ? html`
+                <input
+                  type="file"
+                  id="chat-file-input"
+                  style="display: none"
+                  @change=${(e: Event) => {
+                    const input = e.target as HTMLInputElement;
+                    const file = input.files?.[0];
+                    if (file && props.onFileUpload) {
+                      props.onFileUpload(file);
+                    }
+                    input.value = "";
+                  }}
+                />
+                <button
+                  class="btn--icon"
+                  style="align-self: flex-end; margin-bottom: 2px;"
+                  @click=${() => {
+                    const input = document.getElementById("chat-file-input");
+                    input?.click();
+                  }}
+                  title="Attach file"
+                >
+                  ${icons.paperclip}
+                </button>
+              ` 
+              : nothing
+            }
+            <label class="field chat-compose__field">
+              <span>Message</span>
+              <textarea
+                ${ref((el) => el && adjustTextareaHeight(el as HTMLTextAreaElement))}
+                .value=${props.draft}
+                ?disabled=${!props.connected}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key !== "Enter") {
+                    return;
+                  }
+                  if (e.isComposing || e.keyCode === 229) {
+                    return;
+                  }
+                  if (e.shiftKey) {
+                    return;
+                  } // Allow Shift+Enter for line breaks
+                  if (!props.connected) {
+                    return;
+                  }
+                  e.preventDefault();
+                  if (canCompose) {
+                    props.onSend();
+                  }
+                }}
+                @input=${(e: Event) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  adjustTextareaHeight(target);
+                  props.onDraftChange(target.value);
+                }}
+                @paste=${(e: ClipboardEvent) => handlePaste(e, props)}
+                placeholder=${composePlaceholder}
+              ></textarea>
+            </label>
+            <div class="chat-compose__actions">
+              ${props.onToggleMic 
+                ? html`
+                  <button
+                    class="btn--icon"
+                    @click=${props.onToggleMic}
+                    title=${props.isListening ? "Stop listening" : "Start listening"}
+                    style=${props.isListening ? "color: var(--accent); border-color: var(--accent);" : ""}
+                  >
+                    ${props.isListening ? icons.micOff : icons.mic}
+                  </button>
+                ` 
+                : nothing
+              }
+              <button
+                class="btn"
+                ?disabled=${!props.connected || (!canAbort && props.sending)}
+                @click=${canAbort ? props.onAbort : props.onNewSession}
+              >
+                ${canAbort ? "Stop" : "New session"}
+              </button>
+              <button
+                class="btn primary"
+                ?disabled=${!props.connected}
+                @click=${props.onSend}
+              >
+                ${isBusy ? "Queue" : "Send"}<kbd class="btn-kbd">↵</kbd>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -445,6 +677,7 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
   const items: ChatItem[] = [];
   const history = Array.isArray(props.messages) ? props.messages : [];
   const tools = Array.isArray(props.toolMessages) ? props.toolMessages : [];
+  const actions = Array.isArray(props.actionMessages) ? props.actionMessages : [];
   const historyStart = Math.max(0, history.length - CHAT_HISTORY_RENDER_LIMIT);
   if (historyStart > 0) {
     items.push({
@@ -457,6 +690,15 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
       },
     });
   }
+
+  // Collect all items with timestamps for proper ordering
+  type TimestampedItem =
+    | { type: "message"; msg: unknown; index: number; ts: number }
+    | { type: "action"; action: ActionMessage; ts: number };
+
+  const allItems: TimestampedItem[] = [];
+
+  // Add regular messages
   for (let i = historyStart; i < history.length; i++) {
     const msg = history[i];
     const normalized = normalizeMessage(msg);
@@ -465,12 +707,43 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
       continue;
     }
 
-    items.push({
-      kind: "message",
-      key: messageKey(msg, i),
-      message: msg,
+    allItems.push({
+      type: "message",
+      msg,
+      index: i,
+      ts: normalized.timestamp || 0,
     });
   }
+
+  // Add action messages
+  for (const action of actions) {
+    allItems.push({
+      type: "action",
+      action,
+      ts: action.timestamp,
+    });
+  }
+
+  // Sort by timestamp
+  allItems.sort((a, b) => a.ts - b.ts);
+
+  // Build items array
+  for (const item of allItems) {
+    if (item.type === "message") {
+      items.push({
+        kind: "message",
+        key: messageKey(item.msg, item.index),
+        message: item.msg,
+      });
+    } else {
+      items.push({
+        kind: "action",
+        key: `action:${item.action.type}:${item.ts}`,
+        action: item.action,
+      });
+    }
+  }
+
   if (props.showThinking) {
     for (let i = 0; i < tools.length; i++) {
       items.push({

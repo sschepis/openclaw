@@ -6,7 +6,17 @@
 export type ChatItem =
   | { kind: "message"; key: string; message: unknown }
   | { kind: "stream"; key: string; text: string; startedAt: number }
-  | { kind: "reading-indicator"; key: string };
+  | { kind: "reading-indicator"; key: string }
+  | { kind: "action"; key: string; action: ActionMessage };
+
+/** Action message for system events like cron job creation */
+export type ActionMessage = {
+  type: "cron-created" | "cron-updated" | "cron-removed" | "session-renamed" | "generic";
+  title: string;
+  description?: string;
+  timestamp: number;
+  details?: Record<string, string | number | boolean | undefined>;
+};
 
 /** A group of consecutive messages from the same role (Slack-style layout) */
 export type MessageGroup = {
@@ -40,4 +50,5 @@ export type ToolCard = {
   name: string;
   args?: unknown;
   text?: string;
+  images?: string[];
 };

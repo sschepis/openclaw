@@ -509,6 +509,13 @@ export async function runReplyAgent(params: {
     if (verboseEnabled && activeIsNewSession) {
       finalPayloads = [{ text: `🧭 New session: ${followupRun.run.sessionId}` }, ...finalPayloads];
     }
+
+    const toolsUsed = runResult.meta.toolsUsed;
+    if (toolsUsed && toolsUsed.length > 0) {
+      const skillsLine = `🛠️ Skills used: ${toolsUsed.join(", ")}`;
+      finalPayloads = appendUsageLine(finalPayloads, skillsLine);
+    }
+
     if (responseUsageLine) {
       finalPayloads = appendUsageLine(finalPayloads, responseUsageLine);
     }

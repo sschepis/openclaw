@@ -1,4 +1,5 @@
 import { truncateText } from "./format";
+import type { ThinkingState, ThinkingAction } from "./components/thinking-panel";
 
 const TOOL_STREAM_LIMIT = 50;
 const TOOL_STREAM_THROTTLE_MS = 80;
@@ -32,6 +33,7 @@ type ToolStreamHost = {
   toolStreamOrder: string[];
   chatToolMessages: Record<string, unknown>[];
   toolStreamSyncTimer: number | null;
+  thinkingState: ThinkingState | null;
 };
 
 function extractToolOutputText(value: unknown): string | null {
@@ -158,6 +160,7 @@ export function resetToolStream(host: ToolStreamHost) {
   host.toolStreamById.clear();
   host.toolStreamOrder = [];
   host.chatToolMessages = [];
+  host.thinkingState = null;
   flushToolStreamSync(host);
 }
 
@@ -204,6 +207,71 @@ export function handleCompactionEvent(host: CompactionHost, payload: AgentEventP
   }
 }
 
+function updateThinkingState(host: ToolStreamHost, payload: AgentEventPayload) {
+  if (!host.thinkingState) {
+    host.thinkingState = {
+      active: true,
+      status: "Thinking...",
+      actions: [],
+    };
+  }
+
+  const state = host.thinkingState;
+  const now = Date.now();
+
+  if (payload.stream === "lifecycle") {
+    const phase = payload.data?.phase as string;
+    if (phase === "start") {
+      state.active = true;
+      state.status = "Starting...";
+    } else if (phase === "end" || phase === "error") {
+      state.active = false;
+      state.status = phase === "error" ? "Error" : "Done";
+    }
+  } else if (payload.stream === "tool") {
+    const data = payload.data || {};
+    const toolCallId = data.toolCallId as string;
+    if (!toolCallId) return;
+
+    const phase = data.phase as string;
+    const name = data.name as string || "tool";
+    
+    let action = state.actions.find(a => a.id === toolCallId);
+    
+    if (phase === "start") {
+      state.status = `Running ${name}...`;
+      if (!action) {
+        action = {
+          id: toolCallId,
+          kind: "tool",
+          status: "running",
+          label: name,
+          timestamp: now,
+        };
+        state.actions.unshift(action);
+      }
+    } else if (phase === "result" || phase === "error") {
+      if (action) {
+        action.status = phase === "error" ? "error" : "done";
+        if (phase === "error") {
+           action.detail = typeof data.error === "string" ? data.error : "Failed";
+        }
+      }
+      state.status = "Thinking..."; 
+    }
+  } else if (payload.stream === "assistant") {
+      // If we start streaming text, we are "Generating response"
+      if (state.active) {
+          state.status = "Generating response...";
+      }
+  }
+  
+  // Cap actions history
+  if (state.actions.length > 20) {
+      state.actions = state.actions.slice(0, 20);
+  }
+}
+
 export function handleAgentEvent(host: ToolStreamHost, payload?: AgentEventPayload) {
   if (!payload) {
     return;
@@ -215,10 +283,19 @@ export function handleAgentEvent(host: ToolStreamHost, payload?: AgentEventPaylo
     return;
   }
 
+  const sessionKey = typeof payload.sessionKey === "string" ? payload.sessionKey : undefined;
+  // Valid event logic
+  const isValidSession = sessionKey && sessionKey === host.sessionKey;
+  const isValidRun = !sessionKey && host.chatRunId && payload.runId === host.chatRunId;
+  
+  if (isValidSession || isValidRun) {
+      updateThinkingState(host, payload);
+  }
+
   if (payload.stream !== "tool") {
     return;
   }
-  const sessionKey = typeof payload.sessionKey === "string" ? payload.sessionKey : undefined;
+  
   if (sessionKey && sessionKey !== host.sessionKey) {
     return;
   }

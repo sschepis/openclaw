@@ -28,7 +28,19 @@ export type OAuthCredential = OAuthCredentials & {
   email?: string;
 };
 
-export type AuthProfileCredential = ApiKeyCredential | TokenCredential | OAuthCredential;
+export type ServiceAccountCredential = {
+  type: "service_account";
+  provider: string;
+  /** JSON content of the service account key */
+  keyJson: string;
+  email?: string;
+};
+
+export type AuthProfileCredential =
+  | ApiKeyCredential
+  | TokenCredential
+  | OAuthCredential
+  | ServiceAccountCredential;
 
 export type AuthProfileFailureReason =
   | "auth"

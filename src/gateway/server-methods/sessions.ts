@@ -40,7 +40,7 @@ import { applySessionsPatchToStore } from "../sessions-patch.js";
 import { resolveSessionKeyFromResolveParams } from "../sessions-resolve.js";
 
 export const sessionsHandlers: GatewayRequestHandlers = {
-  "sessions.list": ({ params, respond }) => {
+  "sessions.list": async ({ params, respond, context }) => {
     if (!validateSessionsListParams(params)) {
       respond(
         false,
@@ -55,11 +55,21 @@ export const sessionsHandlers: GatewayRequestHandlers = {
     const p = params;
     const cfg = loadConfig();
     const { storePath, store } = loadCombinedSessionStoreForGateway(cfg);
+
+    let cronJobs;
+    try {
+      const cronResult = await context.cron.list({ includeDisabled: true });
+      cronJobs = cronResult;
+    } catch {
+      // Ignore cron errors
+    }
+
     const result = listSessionsFromStore({
       cfg,
       storePath,
       store,
       opts: p,
+      cronJobs,
     });
     respond(true, result, undefined);
   },

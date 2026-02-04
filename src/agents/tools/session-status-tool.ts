@@ -104,6 +104,9 @@ function resolveModelAuthLabel(params: {
     if (profile.type === "token") {
       return `token ${formatApiKeySnippet(profile.token)}${label ? ` (${label})` : ""}`;
     }
+    if (profile.type === "service_account") {
+      return `service-account${label ? ` (${label})` : ""}`;
+    }
     return `api-key ${formatApiKeySnippet(profile.key)}${label ? ` (${label})` : ""}`;
   }
 

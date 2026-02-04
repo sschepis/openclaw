@@ -10,6 +10,7 @@ export class FailoverError extends Error {
   readonly profileId?: string;
   readonly status?: number;
   readonly code?: string;
+  readonly retryAfterMs?: number;
 
   constructor(
     message: string,
@@ -20,6 +21,7 @@ export class FailoverError extends Error {
       profileId?: string;
       status?: number;
       code?: string;
+      retryAfterMs?: number;
       cause?: unknown;
     },
   ) {
@@ -31,6 +33,7 @@ export class FailoverError extends Error {
     this.profileId = params.profileId;
     this.status = params.status;
     this.code = params.code;
+    this.retryAfterMs = params.retryAfterMs;
   }
 }
 
@@ -121,6 +124,39 @@ function hasTimeoutHint(err: unknown): boolean {
   }
   const message = getErrorMessage(err);
   return Boolean(message && TIMEOUT_HINT_RE.test(message));
+}
+
+function extractRetryAfterMs(err: unknown): number | undefined {
+  if (!err || typeof err !== "object") {
+    return undefined;
+  }
+  // Attempt to extract headers from common HTTP error shapes (axios, fetch, etc)
+  // oxlint-disable-next-line typescript/no-explicit-any
+  const headers = (err as any).headers ?? (err as any).response?.headers;
+  if (!headers) {
+    return undefined;
+  }
+
+  const getHeader = (name: string): string | undefined | null => {
+    // oxlint-disable-next-line typescript/no-unsafe-call
+    if (typeof headers.get === "function") return headers.get(name);
+    // oxlint-disable-next-line typescript/no-unsafe-member-access
+    return headers[name] ?? headers[name.toLowerCase()];
+  };
+
+  const value = getHeader("retry-after");
+  if (!value) {
+    return undefined;
+  }
+
+  if (/^\d+$/.test(value)) {
+    return parseInt(value, 10) * 1000;
+  }
+  const date = Date.parse(value);
+  if (!isNaN(date)) {
+    return Math.max(0, date - Date.now());
+  }
+  return undefined;
 }
 
 export function isTimeoutError(err: unknown): boolean {
@@ -218,6 +254,7 @@ export function coerceToFailoverError(
   const message = getErrorMessage(err) || String(err);
   const status = getStatusCode(err) ?? resolveFailoverStatus(reason);
   const code = getErrorCode(err);
+  const retryAfterMs = extractRetryAfterMs(err);
 
   return new FailoverError(message, {
     reason,
@@ -226,6 +263,7 @@ export function coerceToFailoverError(
     profileId: context?.profileId,
     status,
     code,
+    retryAfterMs,
     cause: err instanceof Error ? err : undefined,
   });
 }

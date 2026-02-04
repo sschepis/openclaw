@@ -363,6 +363,7 @@ export type GatewaySessionRow = {
   model?: string;
   modelProvider?: string;
   contextTokens?: number;
+  cronJobs?: CronJob[];
 };
 
 export type SessionsListResult = {
@@ -523,4 +524,82 @@ export type LogEntry = {
   subsystem?: string | null;
   message?: string | null;
   meta?: Record<string, unknown> | null;
+};
+
+// Activity types for the /activities page
+export type ActivityTaskType =
+  | "coding"
+  | "research"
+  | "writing"
+  | "analysis"
+  | "conversation"
+  | "automation"
+  | "unknown";
+
+export type VisualizationType =
+  | "progress-bar"
+  | "file-tree"
+  | "code-diff"
+  | "checklist"
+  | "timeline"
+  | "metrics"
+  | "conversation"
+  | "generic";
+
+export type StateValue = {
+  key: string;
+  label: string;
+  value: string | number | boolean;
+  type: "text" | "number" | "boolean" | "progress" | "list" | "code";
+  unit?: string;
+};
+
+export type ActionParameter = {
+  name: string;
+  label: string;
+  type: "text" | "number" | "select" | "boolean";
+  options?: Array<{ value: string; label: string }>;
+  default?: string | number | boolean;
+};
+
+export type ActivityAction = {
+  id: string;
+  label: string;
+  description: string;
+  icon?: string;
+  variant: "primary" | "secondary" | "danger";
+  promptTemplate: string;
+  confirmRequired?: boolean;
+  parameters?: ActionParameter[];
+};
+
+export type ActivityState = {
+  sessionKey: string;
+  sessionId: string;
+  
+  // Core metadata
+  label?: string;
+  displayName: string;
+  updatedAt: number | null;
+  isActive: boolean;
+  
+  // AI-extracted state (populated in Phase 2)
+  taskType: ActivityTaskType;
+  phase: string;
+  progress: number | null;
+  summary: string;
+  stateValues: Record<string, StateValue>;
+  
+  // Available actions (populated in Phase 2)
+  actions: ActivityAction[];
+  
+  // Visualization hints (populated in Phase 2)
+  visualization: VisualizationType;
+  visualizationData: Record<string, unknown>;
+};
+
+export type ActivitiesListResult = {
+  ts: number;
+  count: number;
+  activities: ActivityState[];
 };

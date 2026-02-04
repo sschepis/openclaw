@@ -9,9 +9,11 @@ import type { UiSettings } from "./storage";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
 import type {
+  ActivitiesListResult,
   AgentsListResult,
   ChannelsStatusSnapshot,
   ConfigSnapshot,
+  ConfigUiHints,
   CronJob,
   CronRunLogEntry,
   CronStatus,
@@ -24,8 +26,10 @@ import type {
   SkillStatusReport,
   StatusSummary,
 } from "./types";
+import type { ActionMessage } from "./types/chat-types";
 import type { ChatAttachment, ChatQueueItem, CronFormState } from "./ui-types";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
+import type { ThinkingState } from "./components/thinking-panel";
 
 export type AppViewState = {
   settings: UiSettings;
@@ -50,10 +54,22 @@ export type AppViewState = {
   chatMessages: unknown[];
   chatToolMessages: unknown[];
   chatStream: string | null;
+  chatStreamStartedAt: number | null;
   chatRunId: string | null;
+  compactionStatus: import("./app-tool-stream").CompactionStatus | null;
   chatAvatarUrl: string | null;
   chatThinkingLevel: string | null;
+  thinkingState: ThinkingState | null;
   chatQueue: ChatQueueItem[];
+  refreshSessionsAfterChat: Set<string>;
+  chatActionMessages: ActionMessage[];
+  mobileSessionsOpen: boolean;
+  sessionSearchQuery: string;
+  sidebarOpen: boolean;
+  sidebarContent: string | null;
+  sidebarError: string | null;
+  splitRatio: number;
+  chatUserNearBottom: boolean;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
   devicesLoading: boolean;
@@ -79,10 +95,12 @@ export type AppViewState = {
   configSaving: boolean;
   configApplying: boolean;
   updateRunning: boolean;
+  applySessionKey: string;
   configSnapshot: ConfigSnapshot | null;
   configSchema: unknown;
+  configSchemaVersion: string | null;
   configSchemaLoading: boolean;
-  configUiHints: Record<string, unknown>;
+  configUiHints: ConfigUiHints;
   configForm: Record<string, unknown> | null;
   configFormOriginal: Record<string, unknown> | null;
   configFormMode: "form" | "raw";
@@ -97,10 +115,13 @@ export type AppViewState = {
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
   configFormDirty: boolean;
+  configSearchQuery: string;
+  configActiveSection: string | null;
+  configActiveSubsection: string | null;
   presenceLoading: boolean;
   presenceEntries: PresenceEntry[];
   presenceError: string | null;
-  presenceStatus: string | null;
+  presenceStatus: StatusSummary | null;
   agentsLoading: boolean;
   agentsList: AgentsListResult | null;
   agentsError: string | null;
@@ -111,6 +132,9 @@ export type AppViewState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  activitiesLoading: boolean;
+  activitiesList: ActivitiesListResult | null;
+  activitiesError: string | null;
   cronLoading: boolean;
   cronJobs: CronJob[];
   cronStatus: CronStatus | null;
@@ -123,6 +147,10 @@ export type AppViewState = {
   skillsReport: SkillStatusReport | null;
   skillsError: string | null;
   skillsFilter: string;
+  skillsView: "installed" | "registry";
+  registryLoading: boolean;
+  registryError: string | null;
+  registryList: import("./controllers/skills").RegistrySkill[];
   skillEdits: Record<string, string>;
   skillMessages: Record<string, SkillMessage>;
   skillsBusyKey: string | null;
@@ -143,6 +171,11 @@ export type AppViewState = {
   logsLevelFilters: Record<LogLevel, boolean>;
   logsAutoFollow: boolean;
   logsTruncated: boolean;
+  logsCursor: number | null;
+  logsLastFetchAt: number | null;
+  logsLimit: number;
+  logsMaxBytes: number;
+  logsAtBottom: boolean;
   client: GatewayBrowserClient | null;
   connect: () => void;
   setTab: (tab: Tab) => void;
@@ -171,7 +204,7 @@ export type AppViewState = {
   handleConfigFormUpdate: (path: string, value: unknown) => void;
   handleConfigFormModeChange: (mode: "form" | "raw") => void;
   handleConfigRawChange: (raw: string) => void;
-  handleInstallSkill: (key: string) => Promise<void>;
+  handleInstallSkill: (key: string, name: string, installId: string) => Promise<void>;
   handleUpdateSkill: (key: string) => Promise<void>;
   handleToggleSkillEnabled: (key: string, enabled: boolean) => Promise<void>;
   handleUpdateSkillEdit: (key: string, value: string) => void;
@@ -194,13 +227,41 @@ export type AppViewState = {
   setPassword: (next: string) => void;
   setSessionKey: (next: string) => void;
   setChatMessage: (next: string) => void;
-  handleChatSend: () => Promise<void>;
-  handleChatAbort: () => Promise<void>;
+  handleSendChat: (messageOverride?: string, opts?: { restoreDraft?: boolean }) => Promise<void>;
+  handleAbortChat: () => Promise<void>;
+  handleDeleteMessage: (id: string) => Promise<void>;
+  removeQueuedMessage: (id: string) => void;
+  resetToolStream: () => void;
+  resetChatScroll: () => void;
+  handleChatScroll: (event: Event) => void;
+  handleLogsScroll: (event: Event) => void;
+  exportLogs: (lines: string[], label: string) => void;
+  handleOpenSidebar: (content: string) => void;
+  handleCloseSidebar: () => void;
+  handleSplitRatioChange: (ratio: number) => void;
   handleChatSelectQueueItem: (id: string) => void;
   handleChatDropQueueItem: (id: string) => void;
   handleChatClearQueue: () => void;
+  isListening: boolean;
+  handleToggleMic: () => void;
+  handleSpeak: (text: string) => void;
+  handleFileUpload: (file: File) => Promise<void>;
+  handleExportSession: (key: string) => Promise<void>;
+  handleNewSession: () => Promise<void>;
   handleLogsFilterChange: (next: string) => void;
   handleLogsLevelFilterToggle: (level: LogLevel) => void;
   handleLogsAutoFollowToggle: (next: boolean) => void;
   handleCallDebugMethod: (method: string, params: string) => Promise<void>;
+  settingsOpen: boolean;
+  handleToggleSettings: () => void;
+  handleSkillsViewChange: (view: "installed" | "registry") => void;
+  loadActivities: () => Promise<void>;
+  handleActivityAction: (
+    sessionKey: string,
+    actionId: string,
+    parameters?: Record<string, unknown>,
+  ) => Promise<void>;
+  addActionMessage: (action: ActionMessage) => void;
+  clearActionMessages: () => void;
+  handleRenameSession: (key: string, newName: string) => Promise<void>;
 };

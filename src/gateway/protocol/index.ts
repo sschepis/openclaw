@@ -1,5 +1,11 @@
 import AjvPkg, { type ErrorObject } from "ajv";
 import {
+  type ActivitiesAnalyzeParams,
+  ActivitiesAnalyzeParamsSchema,
+  type ActivitiesExecuteParams,
+  ActivitiesExecuteParamsSchema,
+  type ActivitiesListParams,
+  ActivitiesListParamsSchema,
   type AgentEvent,
   AgentEventSchema,
   type AgentIdentityParams,
@@ -28,6 +34,8 @@ import {
   ChatHistoryParamsSchema,
   type ChatInjectParams,
   ChatInjectParamsSchema,
+  type ChatDeleteParams,
+  ChatDeleteParamsSchema,
   ChatSendParamsSchema,
   type ConfigApplyParams,
   ConfigApplyParamsSchema,
@@ -197,6 +205,15 @@ const ajv = new (AjvPkg as unknown as new (opts?: object) => import("ajv").defau
   removeAdditional: false,
 });
 
+export const validateActivitiesListParams = ajv.compile<ActivitiesListParams>(
+  ActivitiesListParamsSchema,
+);
+export const validateActivitiesExecuteParams = ajv.compile<ActivitiesExecuteParams>(
+  ActivitiesExecuteParamsSchema,
+);
+export const validateActivitiesAnalyzeParams = ajv.compile<ActivitiesAnalyzeParams>(
+  ActivitiesAnalyzeParamsSchema,
+);
 export const validateConnectParams = ajv.compile<ConnectParams>(ConnectParamsSchema);
 export const validateRequestFrame = ajv.compile<RequestFrame>(RequestFrameSchema);
 export const validateResponseFrame = ajv.compile<ResponseFrame>(ResponseFrameSchema);
@@ -314,6 +331,7 @@ export const validateChatHistoryParams = ajv.compile(ChatHistoryParamsSchema);
 export const validateChatSendParams = ajv.compile(ChatSendParamsSchema);
 export const validateChatAbortParams = ajv.compile<ChatAbortParams>(ChatAbortParamsSchema);
 export const validateChatInjectParams = ajv.compile<ChatInjectParams>(ChatInjectParamsSchema);
+export const validateChatDeleteParams = ajv.compile<ChatDeleteParams>(ChatDeleteParamsSchema);
 export const validateChatEvent = ajv.compile(ChatEventSchema);
 export const validateUpdateRunParams = ajv.compile<UpdateRunParams>(UpdateRunParamsSchema);
 export const validateWebLoginStartParams =
@@ -357,6 +375,9 @@ export function formatValidationErrors(errors: ErrorObject[] | null | undefined)
 }
 
 export {
+  ActivitiesListParamsSchema,
+  ActivitiesExecuteParamsSchema,
+  ActivitiesAnalyzeParamsSchema,
   ConnectParamsSchema,
   HelloOkSchema,
   RequestFrameSchema,
@@ -427,6 +448,7 @@ export {
   ChatHistoryParamsSchema,
   ChatSendParamsSchema,
   ChatInjectParamsSchema,
+  ChatDeleteParamsSchema,
   UpdateRunParamsSchema,
   TickEventSchema,
   ShutdownEventSchema,
@@ -437,6 +459,9 @@ export {
 };
 
 export type {
+  ActivitiesListParams,
+  ActivitiesExecuteParams,
+  ActivitiesAnalyzeParams,
   GatewayFrame,
   ConnectParams,
   HelloOk,
@@ -519,4 +544,5 @@ export type {
   PollParams,
   UpdateRunParams,
   ChatInjectParams,
+  ChatDeleteParams,
 };

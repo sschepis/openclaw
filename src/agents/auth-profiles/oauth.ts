@@ -171,6 +171,9 @@ export async function resolveApiKeyForProfile(params: {
   if (cred.type === "api_key") {
     return { apiKey: cred.key, provider: cred.provider, email: cred.email };
   }
+  if (cred.type === "service_account") {
+    return { apiKey: cred.keyJson, provider: cred.provider, email: cred.email };
+  }
   if (cred.type === "token") {
     const token = cred.token?.trim();
     if (!token) {

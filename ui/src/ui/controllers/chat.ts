@@ -27,23 +27,77 @@ export type ChatEventPayload = {
   errorMessage?: string;
 };
 
-export async function loadChatHistory(state: ChatState) {
+export async function fetchChatHistory(client: GatewayBrowserClient, sessionKey: string) {
+  try {
+    const res = await client.request("chat.history", {
+      sessionKey,
+      limit: 1000,
+    }) as { messages: unknown[] };
+    return Array.isArray(res.messages) ? res.messages : [];
+  } catch (err) {
+    console.error("Failed to fetch chat history", err);
+    return [];
+  }
+}
+
+export async function loadChatHistory(state: ChatState, options?: { retryCount?: number }) {
   if (!state.client || !state.connected) {
     return;
   }
+  // Capture the session key at the start of the request to detect changes
+  const sessionKeyAtStart = state.sessionKey;
+  // Capture current message count to detect if server hasn't persisted new messages yet
+  const currentMessageCount = state.chatMessages.length;
+  const retryCount = options?.retryCount ?? 0;
+  const maxRetries = 3;
+  const retryDelayMs = 150;
+
   state.chatLoading = true;
   state.lastError = null;
   try {
     const res = await state.client.request("chat.history", {
-      sessionKey: state.sessionKey,
+      sessionKey: sessionKeyAtStart,
       limit: 200,
-    });
-    state.chatMessages = Array.isArray(res.messages) ? res.messages : [];
+    }) as { messages: unknown[]; thinkingLevel?: string };
+    // Only update state if the session key hasn't changed during the async call
+    // This prevents clearing messages when the user switches sessions mid-request
+    if (state.sessionKey !== sessionKeyAtStart) {
+      return;
+    }
+    const newMessages = Array.isArray(res.messages) ? res.messages : [];
+    
+    // If the server returns fewer messages than we have locally (due to optimistic updates),
+    // it means the server hasn't persisted the new messages yet. Retry after a short delay.
+    // This prevents the visual "clearing" bug where messages briefly disappear.
+    if (newMessages.length < currentMessageCount && currentMessageCount > 0 && retryCount < maxRetries) {
+      // Keep loading state while retrying - don't set to false here
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      return loadChatHistory(state, { retryCount: retryCount + 1 });
+    }
+    
+    // Final safeguard: if server returns fewer messages than we have locally,
+    // keep local messages to prevent visual "clearing" or data loss.
+    // This happens when the server is lagging behind the optimistic client state.
+    if (newMessages.length < currentMessageCount && currentMessageCount > 0 && retryCount >= maxRetries) {
+      console.warn(
+        "[loadChatHistory] Server returned fewer messages after retries, keeping local messages",
+        { current: currentMessageCount, received: newMessages.length },
+      );
+      return;
+    }
+    
+    state.chatMessages = newMessages;
     state.chatThinkingLevel = res.thinkingLevel ?? null;
   } catch (err) {
-    state.lastError = String(err);
+    // Only set error if session key hasn't changed
+    if (state.sessionKey === sessionKeyAtStart) {
+      state.lastError = String(err);
+    }
   } finally {
-    state.chatLoading = false;
+    // Only clear loading state if session key hasn't changed
+    if (state.sessionKey === sessionKeyAtStart) {
+      state.chatLoading = false;
+    }
   }
 }
 
@@ -165,6 +219,20 @@ export async function abortChatRun(state: ChatState): Promise<boolean> {
   }
 }
 
+export async function deleteMessage(state: ChatState, messageId: string) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  try {
+    await state.client.request("chat.delete", {
+      sessionKey: state.sessionKey,
+      messageId,
+    });
+  } catch (err) {
+    state.lastError = String(err);
+  }
+}
+
 export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
   if (!payload) {
     return null;
@@ -177,6 +245,8 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
   // See https://github.com/openclaw/openclaw/issues/1909
   if (payload.runId && state.chatRunId && payload.runId !== state.chatRunId) {
     if (payload.state === "final") {
+      // Set loading state immediately to prevent empty state flash while history loads
+      state.chatLoading = true;
       return "final";
     }
     return null;
@@ -191,6 +261,15 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
       }
     }
   } else if (payload.state === "final") {
+    // Optimistically append final message to ensure it appears immediately
+    // and prevents data loss if the history fetch lags or fails.
+    if (payload.message && typeof payload.message === "object") {
+      state.chatMessages = [...state.chatMessages, payload.message];
+    }
+
+    // Set loading state BEFORE clearing stream to prevent empty state flash
+    // This ensures the skeleton loader shows during the transition to loaded history
+    state.chatLoading = true;
     state.chatStream = null;
     state.chatRunId = null;
     state.chatStreamStartedAt = null;

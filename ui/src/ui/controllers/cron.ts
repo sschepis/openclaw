@@ -1,5 +1,6 @@
 import type { GatewayBrowserClient } from "../gateway";
 import type { CronJob, CronRunLogEntry, CronStatus } from "../types";
+import type { ActionMessage } from "../types/chat-types";
 import type { CronFormState } from "../ui-types";
 import { toNumber } from "../format";
 
@@ -14,6 +15,7 @@ export type CronState = {
   cronRunsJobId: string | null;
   cronRuns: CronRunLogEntry[];
   cronBusy: boolean;
+  addActionMessage?: (action: ActionMessage) => void;
 };
 
 export async function loadCronStatus(state: CronState) {
@@ -119,8 +121,9 @@ export async function addCronJob(state: CronState) {
     const schedule = buildCronSchedule(state.cronForm);
     const payload = buildCronPayload(state.cronForm);
     const agentId = state.cronForm.agentId.trim();
+    const jobName = state.cronForm.name.trim();
     const job = {
-      name: state.cronForm.name.trim(),
+      name: jobName,
       description: state.cronForm.description.trim() || undefined,
       agentId: agentId || undefined,
       enabled: state.cronForm.enabled,
@@ -137,6 +140,23 @@ export async function addCronJob(state: CronState) {
       throw new Error("Name required.");
     }
     await state.client.request("cron.add", job);
+
+    // Add an action message about the cron job creation
+    if (state.addActionMessage) {
+      const scheduleDescription = formatScheduleDescription(schedule);
+      state.addActionMessage({
+        type: "cron-created",
+        title: `Scheduled job created: ${jobName}`,
+        description: scheduleDescription,
+        timestamp: Date.now(),
+        details: {
+          session: state.cronForm.sessionTarget,
+          wake: state.cronForm.wakeMode,
+          enabled: state.cronForm.enabled ? "yes" : "no",
+        },
+      });
+    }
+
     state.cronForm = {
       ...state.cronForm,
       name: "",
@@ -150,6 +170,30 @@ export async function addCronJob(state: CronState) {
   } finally {
     state.cronBusy = false;
   }
+}
+
+/**
+ * Formats a schedule into a human-readable description.
+ */
+function formatScheduleDescription(schedule: ReturnType<typeof buildCronSchedule>): string {
+  if (schedule.kind === "at") {
+    const date = new Date(schedule.atMs);
+    return `Runs once at ${date.toLocaleString()}`;
+  }
+  if (schedule.kind === "every") {
+    const ms = schedule.everyMs;
+    if (ms >= 86_400_000) {
+      const days = Math.floor(ms / 86_400_000);
+      return `Runs every ${days} day${days > 1 ? "s" : ""}`;
+    }
+    if (ms >= 3_600_000) {
+      const hours = Math.floor(ms / 3_600_000);
+      return `Runs every ${hours} hour${hours > 1 ? "s" : ""}`;
+    }
+    const minutes = Math.floor(ms / 60_000);
+    return `Runs every ${minutes} minute${minutes > 1 ? "s" : ""}`;
+  }
+  return `Runs on cron: ${schedule.expr}${schedule.tz ? ` (${schedule.tz})` : ""}`;
 }
 
 export async function toggleCronJob(state: CronState, job: CronJob, enabled: boolean) {

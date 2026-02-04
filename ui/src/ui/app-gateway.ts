@@ -5,7 +5,7 @@ import type { GatewayEventFrame, GatewayHelloOk } from "./gateway";
 import type { Tab } from "./navigation";
 import type { UiSettings } from "./storage";
 import type { AgentsListResult, PresenceEntry, HealthSnapshot, StatusSummary } from "./types";
-import { CHAT_SESSIONS_ACTIVE_MINUTES, flushChatQueueForEvent } from "./app-chat";
+import { flushChatQueueForEvent } from "./app-chat";
 import { applySettings, loadCron, refreshActiveTab, setLastActiveSessionKey } from "./app-settings";
 import { handleAgentEvent, resetToolStream, type AgentEventPayload } from "./app-tool-stream";
 import { loadAgents } from "./controllers/agents";
@@ -200,9 +200,8 @@ function handleGatewayEventUnsafe(host: GatewayHost, evt: GatewayEventFrame) {
       if (runId && host.refreshSessionsAfterChat.has(runId)) {
         host.refreshSessionsAfterChat.delete(runId);
         if (state === "final") {
-          void loadSessions(host as unknown as OpenClawApp, {
-            activeMinutes: CHAT_SESSIONS_ACTIVE_MINUTES,
-          });
+          // Load all sessions (no activeMinutes filter) to show full session list
+          void loadSessions(host as unknown as OpenClawApp);
         }
       }
     }

@@ -131,6 +131,17 @@ function buildProfileHealth(params: {
     };
   }
 
+  if (credential.type === "service_account") {
+    return {
+      profileId,
+      provider: credential.provider,
+      type: "api_key",
+      status: "static",
+      source,
+      label,
+    };
+  }
+
   const hasRefreshToken = typeof credential.refresh === "string" && credential.refresh.length > 0;
   const { status: rawStatus, remainingMs } = resolveOAuthStatus(
     credential.expires,

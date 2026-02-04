@@ -1,3 +1,23 @@
+// Polyfill File global for node-fetch/undici compatibility (must be before any imports that load undici)
+if (typeof globalThis.File === "undefined") {
+  // @ts-expect-error - minimal File mock for undici compatibility
+  globalThis.File = class File {
+    name: string;
+    type: string;
+    size: number;
+    lastModified: number;
+    constructor(bits: unknown[], name: string, options?: { type?: string; lastModified?: number }) {
+      this.name = name;
+      this.type = options?.type || "";
+      this.size = bits.reduce(
+        (acc: number, b: unknown) => acc + ((b as { length?: number }).length || 0),
+        0,
+      );
+      this.lastModified = options?.lastModified || Date.now();
+    }
+  };
+}
+
 import { afterAll, afterEach, beforeEach, vi } from "vitest";
 
 // Ensure Vitest environment is properly set

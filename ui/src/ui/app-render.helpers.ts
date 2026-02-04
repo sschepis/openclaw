@@ -96,6 +96,10 @@ export function renderChatControls(state: AppViewState) {
             state.chatStream = null;
             state.chatStreamStartedAt = null;
             state.chatRunId = null;
+            // Clear messages BEFORE loading history to ensure the new session's
+            // messages are loaded correctly (prevents stale message count check)
+            state.chatMessages = [];
+            state.chatLoading = true;
             state.resetToolStream();
             state.resetChatScroll();
             state.applySettings({

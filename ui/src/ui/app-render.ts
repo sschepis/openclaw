@@ -47,6 +47,8 @@ import {
 } from "./controllers/skills";
 import { icons } from "./icons";
 import { TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation";
+import { loadActivities } from "./controllers/activities";
+import { renderActivities } from "./views/activities";
 import { renderChannels } from "./views/channels";
 import { renderChat } from "./views/chat";
 import { renderConfig } from "./views/config";
@@ -60,6 +62,7 @@ import { renderNodes } from "./views/nodes";
 import { renderOverview } from "./views/overview";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
+import { renderChatSettings } from "./views/chat-settings";
 
 const AVATAR_DATA_RE = /^data:/i;
 const AVATAR_HTTP_RE = /^https?:\/\//i;
@@ -90,6 +93,7 @@ export function renderApp(state: AppViewState) {
   const showThinking = state.onboarding ? false : state.settings.chatShowThinking;
   const assistantAvatarUrl = resolveAssistantAvatarUrl(state);
   const chatAvatarUrl = state.chatAvatarUrl ?? assistantAvatarUrl ?? null;
+  const brandIconUrl = state.basePath ? `${state.basePath}/favicon.svg` : "/favicon.svg";
 
   return html`
     <div class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${state.settings.navCollapsed ? "shell--nav-collapsed" : ""} ${state.onboarding ? "shell--onboarding" : ""}">
@@ -109,7 +113,7 @@ export function renderApp(state: AppViewState) {
           </button>
           <div class="brand">
             <div class="brand-logo">
-              <img src="/favicon.svg" alt="OpenClaw" />
+              <img src="${brandIconUrl}" alt="OpenClaw" />
             </div>
             <div class="brand-text">
               <div class="brand-title">OPENCLAW</div>
@@ -260,8 +264,8 @@ export function renderApp(state: AppViewState) {
                 loading: state.presenceLoading,
                 entries: state.presenceEntries,
                 lastError: state.presenceError,
-                statusMessage: state.presenceStatus,
-                onRefresh: () => loadPresence(state),
+                statusMessage: state.presenceStatus as any,
+                onRefresh: () => loadPresence(state as any),
               })
             : nothing
         }
@@ -291,6 +295,28 @@ export function renderApp(state: AppViewState) {
         }
 
         ${
+          state.tab === "activities"
+            ? renderActivities({
+                loading: state.activitiesLoading,
+                activities: state.activitiesList?.activities ?? [],
+                error: state.activitiesError,
+                basePath: state.basePath,
+                onRefresh: () => loadActivities(state),
+                onAction: (sessionKey, actionId, params) =>
+                  state.handleActivityAction(sessionKey, actionId, params),
+                onOpenChat: (sessionKey) => {
+                  state.sessionKey = sessionKey;
+                  // Clear messages BEFORE switching to chat tab to ensure the new session's
+                  // messages are loaded correctly (prevents stale message count check)
+                  state.chatMessages = [];
+                  state.chatLoading = true;
+                  state.setTab("chat");
+                },
+              })
+            : nothing
+        }
+
+        ${
           state.tab === "cron"
             ? renderCron({
                 loading: state.cronLoading,
@@ -308,7 +334,11 @@ export function renderApp(state: AppViewState) {
                 runs: state.cronRuns,
                 onFormChange: (patch) => (state.cronForm = { ...state.cronForm, ...patch }),
                 onRefresh: () => state.loadCron(),
-                onAdd: () => addCronJob(state),
+                onAdd: () =>
+                  addCronJob({
+                    ...state,
+                    addActionMessage: (action) => state.addActionMessage(action),
+                  }),
                 onToggle: (job, enabled) => toggleCronJob(state, job, enabled),
                 onRun: (job) => runCronJob(state, job),
                 onRemove: (job) => removeCronJob(state, job),
@@ -327,14 +357,14 @@ export function renderApp(state: AppViewState) {
                 edits: state.skillEdits,
                 messages: state.skillMessages,
                 busyKey: state.skillsBusyKey,
-                onFilterChange: (next) => (state.skillsFilter = next),
+                onFilterChange: (next: any) => (state.skillsFilter = next),
                 onRefresh: () => loadSkills(state, { clearMessages: true }),
-                onToggle: (key, enabled) => updateSkillEnabled(state, key, enabled),
-                onEdit: (key, value) => updateSkillEdit(state, key, value),
-                onSaveKey: (key) => saveSkillApiKey(state, key),
-                onInstall: (skillKey, name, installId) =>
+                onToggle: (key: any, enabled: any) => updateSkillEnabled(state, key, enabled),
+                onEdit: (key: any, value: any) => updateSkillEdit(state, key, value),
+                onSaveKey: (key: any) => saveSkillApiKey(state, key),
+                onInstall: (skillKey: any, name: any, installId: any) =>
                   installSkill(state, skillKey, name, installId),
-              })
+              } as any)
             : nothing
         }
 
@@ -429,6 +459,10 @@ export function renderApp(state: AppViewState) {
                   state.chatStreamStartedAt = null;
                   state.chatRunId = null;
                   state.chatQueue = [];
+                  // Clear messages BEFORE loading history to ensure the new session's
+                  // messages are loaded correctly (prevents stale message count check)
+                  state.chatMessages = [];
+                  state.chatLoading = true;
                   state.resetToolStream();
                   state.resetChatScroll();
                   state.applySettings({
@@ -458,6 +492,7 @@ export function renderApp(state: AppViewState) {
                 error: state.lastError,
                 sessions: state.sessionsResult,
                 focusMode: chatFocus,
+                actionMessages: state.chatActionMessages,
                 onRefresh: () => {
                   state.resetToolStream();
                   return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);
@@ -479,7 +514,26 @@ export function renderApp(state: AppViewState) {
                 canAbort: Boolean(state.chatRunId),
                 onAbort: () => void state.handleAbortChat(),
                 onQueueRemove: (id) => state.removeQueuedMessage(id),
-                onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
+                onNewSession: () => state.handleNewSession(),
+                onDeleteSession: (key) => deleteSession(state, key),
+                onExportSession: (key) => state.handleExportSession(key),
+                onDeleteMessage: (id) => state.handleDeleteMessage(id),
+                onRenameSession: (key, newName) => state.handleRenameSession(key, newName),
+                userNearBottom: state.chatUserNearBottom,
+                onScrollToBottom: () => {
+                  state.resetChatScroll();
+                  // Force scroll after render
+                  setTimeout(() => state.resetChatScroll(), 0);
+                },
+                mobileSessionsOpen: state.mobileSessionsOpen,
+                onToggleMobileSessions: () => (state.mobileSessionsOpen = !state.mobileSessionsOpen),
+                sessionSearchQuery: state.sessionSearchQuery,
+                onSessionSearchChange: (query) => (state.sessionSearchQuery = query),
+                onToggleMic: () => state.handleToggleMic(),
+                isListening: state.isListening,
+                onSpeak: (text) => state.handleSpeak(text),
+                onFileUpload: (file) => state.handleFileUpload(file),
+                onSettings: () => state.handleToggleSettings(),
                 // Sidebar props for tool output viewing
                 sidebarOpen: state.sidebarOpen,
                 sidebarContent: state.sidebarContent,
@@ -571,7 +625,7 @@ export function renderApp(state: AppViewState) {
                   state.logsLevelFilters = { ...state.logsLevelFilters, [level]: enabled };
                 },
                 onToggleAutoFollow: (next) => (state.logsAutoFollow = next),
-                onRefresh: () => loadLogs(state, { reset: true }),
+                onRefresh: () => loadLogs(state as any, { reset: true }),
                 onExport: (lines, label) => state.exportLogs(lines, label),
                 onScroll: (event) => state.handleLogsScroll(event),
               })
@@ -580,6 +634,7 @@ export function renderApp(state: AppViewState) {
       </main>
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
+      ${renderChatSettings(state)}
     </div>
   `;
 }

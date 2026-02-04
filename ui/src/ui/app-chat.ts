@@ -5,7 +5,7 @@ import { parseAgentSessionKey } from "../../../src/sessions/session-key-utils.js
 import { scheduleChatScroll } from "./app-scroll";
 import { setLastActiveSessionKey } from "./app-settings";
 import { resetToolStream } from "./app-tool-stream";
-import { abortChatRun, loadChatHistory, sendChatMessage } from "./controllers/chat";
+import { abortChatRun, loadChatHistory, sendChatMessage, deleteMessage } from "./controllers/chat";
 import { loadSessions } from "./controllers/sessions";
 import { normalizeBasePath } from "./navigation";
 import { generateUUID } from "./uuid";
@@ -23,8 +23,6 @@ type ChatHost = {
   chatAvatarUrl: string | null;
   refreshSessionsAfterChat: Set<string>;
 };
-
-export const CHAT_SESSIONS_ACTIVE_MINUTES = 120;
 
 export function isChatBusy(host: ChatHost) {
   return host.chatSending || Boolean(host.chatRunId);
@@ -66,6 +64,16 @@ export async function handleAbortChat(host: ChatHost) {
   }
   host.chatMessage = "";
   await abortChatRun(host as unknown as OpenClawApp);
+}
+
+export async function handleDeleteMessage(host: ChatHost, messageId: string) {
+  if (!host.connected) {
+    return;
+  }
+  if (!window.confirm("Are you sure you want to delete this message? This action cannot be undone.")) {
+    return;
+  }
+  await deleteMessage(host as unknown as OpenClawApp, messageId);
 }
 
 function enqueueChatMessage(
@@ -205,9 +213,8 @@ export async function handleSendChat(
 export async function refreshChat(host: ChatHost) {
   await Promise.all([
     loadChatHistory(host as unknown as OpenClawApp),
-    loadSessions(host as unknown as OpenClawApp, {
-      activeMinutes: CHAT_SESSIONS_ACTIVE_MINUTES,
-    }),
+    // Load all sessions (no activeMinutes filter) to show full session list in chat sidebar
+    loadSessions(host as unknown as OpenClawApp),
     refreshChatAvatar(host),
   ]);
   scheduleChatScroll(host as unknown as Parameters<typeof scheduleChatScroll>[0], true);

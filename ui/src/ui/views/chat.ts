@@ -2,7 +2,7 @@ import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import type { SessionsListResult } from "../types";
-import type { ActionMessage, ChatItem, MessageGroup } from "../types/chat-types";
+import type { ActionMessage, ChatItem, MessageGroup, TaskRecommendation } from "../types/chat-types";
 import type { ChatAttachment, ChatQueueItem } from "../ui-types";
 import {
   renderActionMessage,
@@ -36,6 +36,7 @@ export type ChatProps = {
   messages: unknown[];
   toolMessages: unknown[];
   actionMessages?: ActionMessage[];
+  recommendations?: TaskRecommendation[];
   stream: string | null;
   streamStartedAt: number | null;
   assistantAvatarUrl?: string | null;
@@ -270,6 +271,38 @@ function renderAttachmentPreview(props: ChatProps) {
           </div>
         `,
       )}
+    </div>
+  `;
+}
+
+function renderRecommendations(props: ChatProps) {
+  const recs = props.recommendations ?? [];
+  if (recs.length === 0 || props.sending || props.stream) {
+    return nothing;
+  }
+
+  return html`
+    <div class="chat-recommendations">
+      <div class="chat-recommendations__label">Suggested Actions</div>
+      <div class="chat-recommendations__list">
+        ${recs.map(
+          (rec) => html`
+            <button
+              class="chat-recommendation-pill chat-recommendation-pill--${rec.category}"
+              @click=${() => {
+                props.onDraftChange(rec.prompt);
+                // Optional: auto-focus the textarea
+                const textarea = document.querySelector(".chat-compose textarea") as HTMLTextAreaElement;
+                textarea?.focus();
+              }}
+              title=${rec.prompt}
+            >
+              ${rec.icon ? html`<span class="chat-recommendation-icon">${icons[rec.icon as keyof typeof icons] || icons.zap}</span>` : nothing}
+              ${rec.label}
+            </button>
+          `
+        )}
+      </div>
     </div>
   `;
 }
@@ -547,6 +580,7 @@ export function renderChat(props: ChatProps) {
         }
 
         <div class="chat-compose">
+          ${renderRecommendations(props)}
           ${renderAttachmentPreview(props)}
           <div class="chat-compose__row">
             ${props.onFileUpload && visionSupported

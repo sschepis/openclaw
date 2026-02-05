@@ -1,5 +1,6 @@
 import type { GatewayBrowserClient } from "../gateway";
 import type { ChatAttachment } from "../ui-types";
+import type { TaskRecommendation } from "../types/chat-types";
 import { extractText } from "../chat/message-extract";
 import { generateUUID } from "../uuid";
 
@@ -17,6 +18,7 @@ export type ChatState = {
   chatStream: string | null;
   chatStreamStartedAt: number | null;
   lastError: string | null;
+  chatRecommendations: TaskRecommendation[];
 };
 
 export type ChatEventPayload = {
@@ -37,6 +39,22 @@ export async function fetchChatHistory(client: GatewayBrowserClient, sessionKey:
   } catch (err) {
     console.error("Failed to fetch chat history", err);
     return [];
+  }
+}
+
+export async function fetchRecommendations(state: ChatState) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  try {
+    const res = await state.client.request("chat.recommendations", {
+      sessionKey: state.sessionKey,
+      limit: 5,
+    }) as { recommendations: TaskRecommendation[] };
+    state.chatRecommendations = Array.isArray(res.recommendations) ? res.recommendations : [];
+  } catch (err) {
+    console.error("Failed to fetch recommendations", err);
+    state.chatRecommendations = [];
   }
 }
 
@@ -88,6 +106,8 @@ export async function loadChatHistory(state: ChatState, options?: { retryCount?:
     
     state.chatMessages = newMessages;
     state.chatThinkingLevel = res.thinkingLevel ?? null;
+    // Fetch recommendations after loading history
+    void fetchRecommendations(state);
   } catch (err) {
     // Only set error if session key hasn't changed
     if (state.sessionKey === sessionKeyAtStart) {
@@ -359,6 +379,8 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
     state.chatStream = null;
     state.chatRunId = null;
     state.chatStreamStartedAt = null;
+    // Refresh recommendations on final message
+    void fetchRecommendations(state);
   } else if (payload.state === "aborted") {
     state.chatStream = null;
     state.chatRunId = null;

@@ -52,3 +52,13 @@ export type ToolCard = {
   text?: string;
   images?: string[];
 };
+
+/** Task recommendation for next actions */
+export type TaskRecommendation = {
+  id: string;
+  label: string;
+  prompt: string;
+  category: "followup" | "action" | "clarify" | "explore" | "command";
+  priority: number;
+  icon?: string;
+};

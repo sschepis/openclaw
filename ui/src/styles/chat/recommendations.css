@@ -1,0 +1,94 @@
+.chat-recommendations {
+  padding: 0 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fade-in 0.3s ease-out;
+}
+
+.chat-recommendations__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 2px;
+}
+
+.chat-recommendations__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-recommendation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  text-align: left;
+}
+
+.chat-recommendation-pill:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-recommendation-pill:active {
+  transform: translateY(0);
+  background: var(--surface-active);
+}
+
+.chat-recommendation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.chat-recommendation-pill:hover .chat-recommendation-icon {
+  opacity: 1;
+}
+
+/* Category-specific styles */
+.chat-recommendation-pill--action {
+  border-left: 3px solid var(--accent);
+}
+
+.chat-recommendation-pill--followup {
+  border-left: 3px solid var(--success);
+}
+
+.chat-recommendation-pill--clarify {
+  border-left: 3px solid var(--warning);
+}
+
+.chat-recommendation-pill--explore {
+  border-left: 3px solid var(--info);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

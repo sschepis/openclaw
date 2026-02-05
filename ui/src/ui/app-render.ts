@@ -4,7 +4,7 @@ import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { refreshChatAvatar } from "./app-chat";
 import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers";
 import { loadChannels } from "./controllers/channels";
-import { loadChatHistory } from "./controllers/chat";
+import { fetchRecommendations, loadChatHistory } from "./controllers/chat";
 import {
   applyConfig,
   loadConfig,
@@ -511,9 +511,11 @@ export function renderApp(state: AppViewState) {
                   void state.loadAssistantIdentity();
                   void loadChatHistory(state);
                   void refreshChatAvatar(state);
+                  void fetchRecommendations(state);
                 },
                 thinkingLevel: state.chatThinkingLevel,
                 showThinking,
+                thinkingState: state.thinkingState,
                 loading: state.chatLoading,
                 sending: state.chatSending,
                 compactionStatus: state.compactionStatus,
@@ -531,9 +533,14 @@ export function renderApp(state: AppViewState) {
                 sessions: state.sessionsResult,
                 focusMode: chatFocus,
                 actionMessages: state.chatActionMessages,
+                recommendations: state.chatRecommendations,
                 onRefresh: () => {
                   state.resetToolStream();
-                  return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);
+                  return Promise.all([
+                    loadChatHistory(state),
+                    refreshChatAvatar(state),
+                    fetchRecommendations(state),
+                  ]);
                 },
                 onToggleFocusMode: () => {
                   if (state.onboarding) {

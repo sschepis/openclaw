@@ -26,7 +26,7 @@ import type {
   SkillStatusReport,
   StatusSummary,
 } from "./types";
-import type { ActionMessage } from "./types/chat-types";
+import type { ActionMessage, TaskRecommendation } from "./types/chat-types";
 import type { ChatAttachment, ChatQueueItem, CronFormState } from "./ui-types";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
 import type { ThinkingState } from "./components/thinking-panel";
@@ -63,6 +63,7 @@ export type AppViewState = {
   chatQueue: ChatQueueItem[];
   refreshSessionsAfterChat: Set<string>;
   chatActionMessages: ActionMessage[];
+  chatRecommendations: TaskRecommendation[];
   mobileSessionsOpen: boolean;
   sessionSearchQuery: string;
   sidebarOpen: boolean;

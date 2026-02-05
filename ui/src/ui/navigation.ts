@@ -169,6 +169,8 @@ export function titleForTab(tab: Tab) {
       return "Activities";
     case "cron":
       return "Cron Jobs";
+    case "secrets":
+      return "Secrets";
     case "skills":
       return "Skills";
     case "nodes":
@@ -200,6 +202,8 @@ export function subtitleForTab(tab: Tab) {
       return "Monitor and interact with active agent sessions.";
     case "cron":
       return "Schedule wakeups and recurring agent runs.";
+    case "secrets":
+      return "Manage secure environment variables and API keys.";
     case "skills":
       return "Manage skill availability and API key injection.";
     case "nodes":

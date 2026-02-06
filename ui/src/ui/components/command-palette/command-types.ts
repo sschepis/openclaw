@@ -220,9 +220,15 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean
   const isMac = navigator.platform.toLowerCase().includes("mac");
   const modKey = isMac ? event.metaKey : event.ctrlKey;
 
-  if (needsMod && !modKey) return false;
-  if (needsShift && !event.shiftKey) return false;
-  if (needsAlt && !event.altKey) return false;
+  if (needsMod && !modKey) {
+    return false;
+  }
+  if (needsShift && !event.shiftKey) {
+    return false;
+  }
+  if (needsAlt && !event.altKey) {
+    return false;
+  }
 
   // Check the actual key
   return event.key.toLowerCase() === key;

@@ -167,9 +167,17 @@ export function renderSessions(props: SessionsProps) {
       <div class="session-grid">
         ${
           rows.length === 0
-            ? html`<div class="muted">No sessions found.</div>`
+            ? html`
+                <div class="muted">No sessions found.</div>
+              `
             : rows.map((row) =>
-                renderSessionCard(row, props.basePath, props.onPatch, props.onDelete, props.loading),
+                renderSessionCard(
+                  row,
+                  props.basePath,
+                  props.onPatch,
+                  props.onDelete,
+                  props.loading,
+                ),
               )
         }
       </div>
@@ -188,8 +196,8 @@ function renderCronBadge(job: CronJob) {
   } else if (schedule.kind === "at") {
     label = new Date(schedule.atMs).toLocaleString();
   }
-  
-  const state = job.enabled ? "active" : "disabled";
+
+  const _state = job.enabled ? "active" : "disabled";
   const icon = job.enabled ? "⚡" : "⏸️";
 
   return html`<div class="session-cron-item" title="${job.name || "Cron Job"}">
@@ -223,9 +231,10 @@ function renderSessionCard(
       <div class="session-card-header">
         <div>
           <div>
-            ${canLink 
-              ? html`<a href=${chatUrl} class="session-card-title">${displayName}</a>` 
-              : html`<span class="session-card-title">${displayName}</span>`
+            ${
+              canLink
+                ? html`<a href=${chatUrl} class="session-card-title">${displayName}</a>`
+                : html`<span class="session-card-title">${displayName}</span>`
             }
           </div>
           <div class="session-card-subtitle">${row.kind} • Updated ${updated}</div>
@@ -302,23 +311,31 @@ function renderSessionCard(
           </select>
         </div>
 
-        ${row.cronJobs && row.cronJobs.length > 0 ? html`
+        ${
+          row.cronJobs && row.cronJobs.length > 0
+            ? html`
           <div class="session-cron-list">
             <div class="session-cron-title">Active Tasks</div>
-            ${row.cronJobs.map(job => renderCronBadge(job))}
+            ${row.cronJobs.map((job) => renderCronBadge(job))}
           </div>
-        ` : nothing}
+        `
+            : nothing
+        }
       </div>
 
       <div class="session-card-actions">
         <button class="btn danger btn--sm" ?disabled=${disabled} @click=${() => onDelete(row.key)}>
           Delete
         </button>
-        ${canLink ? html`
+        ${
+          canLink
+            ? html`
           <a href=${chatUrl} class="btn primary btn--sm">
              Open Chat
           </a>
-        ` : nothing}
+        `
+            : nothing
+        }
       </div>
     </div>
   `;

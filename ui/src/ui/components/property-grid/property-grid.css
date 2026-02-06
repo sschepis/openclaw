@@ -49,8 +49,9 @@
   background: var(--bg-elevated);
   font-size: 13px;
   outline: none;
-  transition: border-color var(--duration-fast) ease,
-              box-shadow var(--duration-fast) ease;
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
 }
 
 .pg__search-input::placeholder {
@@ -78,8 +79,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg__search-clear:hover {
@@ -160,7 +162,7 @@
   align-items: center;
   min-height: 36px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.05));
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
   transition: background var(--duration-fast) ease;
 }
 
@@ -326,8 +328,9 @@
   font-family: var(--mono);
   outline: none;
   min-width: 0;
-  transition: border-color var(--duration-fast) ease,
-              box-shadow var(--duration-fast) ease;
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
 }
 
 .pg-editor__input::placeholder {
@@ -395,8 +398,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg-editor__reset:hover:not(:disabled) {
@@ -439,8 +443,9 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
-  transition: background var(--duration-normal) ease,
-              border-color var(--duration-normal) ease;
+  transition:
+    background var(--duration-normal) ease,
+    border-color var(--duration-normal) ease;
 }
 
 .pg-editor__checkbox:checked + .pg-editor__toggle .pg-editor__toggle-track {
@@ -457,8 +462,9 @@
   background: var(--text);
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-normal) var(--ease-out),
-              background var(--duration-normal) ease;
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) ease;
 }
 
 .pg-editor__checkbox:checked + .pg-editor__toggle .pg-editor__toggle-thumb {
@@ -498,8 +504,9 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg-editor__segment:hover:not(:disabled):not(.pg-editor__segment--active) {
@@ -534,8 +541,9 @@
   cursor: pointer;
   outline: none;
   appearance: none;
-  transition: border-color var(--duration-fast) ease,
-              box-shadow var(--duration-fast) ease;
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
 }
 
 .pg-editor__select:focus {
@@ -573,8 +581,9 @@
   color: var(--muted);
   font-size: 12px;
   cursor: pointer;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg-editor__array-toggle:hover {
@@ -607,8 +616,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg-editor__array-add:hover:not(:disabled) {
@@ -643,8 +653,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg-editor__array-item-btn:hover:not(:disabled) {
@@ -673,8 +684,9 @@
   color: var(--muted);
   font-size: 12px;
   cursor: pointer;
-  transition: background var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 
 .pg-editor__object-toggle:hover {
@@ -1001,27 +1013,27 @@
     padding: 8px 16px;
     min-height: auto;
   }
-  
+
   .pg__column-headers {
     grid-template-columns: 1fr;
   }
-  
+
   .pg__column-header--value {
     display: none;
   }
-  
+
   .pg-row__path-parent {
     display: none;
   }
-  
+
   .pg-editor__input {
     width: 100%;
   }
-  
+
   .pg-editor--segmented {
     flex-wrap: wrap;
   }
-  
+
   .pg-editor__segment {
     flex: 1 0 auto;
     min-width: 60px;

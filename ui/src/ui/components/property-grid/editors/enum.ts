@@ -35,7 +35,7 @@ function renderSegmentedControl(
   currentValue: unknown,
   isModified: boolean,
   disabled: boolean,
-  onPatch: (value: unknown) => void
+  onPatch: (value: unknown) => void,
 ): TemplateResult {
   return html`
     <div class="pg-editor pg-editor--segmented ${isModified ? "pg-editor--modified" : ""}">
@@ -49,7 +49,7 @@ function renderSegmentedControl(
           >
             ${formatOptionLabel(opt)}
           </button>
-        `
+        `,
       )}
     </div>
   `;
@@ -63,7 +63,7 @@ function renderDropdown(
   currentValue: unknown,
   isModified: boolean,
   disabled: boolean,
-  onPatch: (value: unknown) => void
+  onPatch: (value: unknown) => void,
 ): TemplateResult {
   const selectedIndex = options.findIndex((opt) => isOptionSelected(opt, currentValue));
 
@@ -83,7 +83,7 @@ function renderDropdown(
             <option value=${String(idx)} ?selected=${idx === selectedIndex}>
               ${formatOptionLabel(opt)}
             </option>
-          `
+          `,
         )}
       </select>
       <span class="pg-editor__select-arrow">▼</span>
@@ -115,5 +115,13 @@ function formatOptionLabel(opt: unknown): string {
   if (typeof opt === "boolean") {
     return opt ? "true" : "false";
   }
-  return String(opt);
+  if (typeof opt === "string" || typeof opt === "number") {
+    return String(opt);
+  }
+  // For objects, use JSON.stringify to avoid [object Object]
+  try {
+    return JSON.stringify(opt);
+  } catch {
+    return "[complex value]";
+  }
 }

@@ -76,8 +76,7 @@ const OLLAMA_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
-const LMSTUDIO_BASE_URL = "http://127.0.0.1:1234/v1";
-const LMSTUDIO_API_BASE_URL = "http://127.0.0.1:1234";
+const LMSTUDIO_DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1";
 const LMSTUDIO_DEFAULT_CONTEXT_WINDOW = 32768; // Conservative default
 const LMSTUDIO_DEFAULT_MAX_TOKENS = -1; // -1 means "context window"
 const LMSTUDIO_DEFAULT_COST = {
@@ -86,6 +85,19 @@ const LMSTUDIO_DEFAULT_COST = {
   cacheRead: 0,
   cacheWrite: 0,
 };
+
+/**
+ * Resolves the LMStudio base URL from environment variable or uses the default.
+ * Supports LMSTUDIO_URL secret for custom LMStudio endpoints.
+ */
+function resolveLMStudioBaseUrl(): string {
+  const envUrl = process.env.LMSTUDIO_URL?.trim();
+  if (envUrl) {
+    // Ensure URL ends with /v1 for OpenAI-compatible API
+    return envUrl.endsWith("/v1") ? envUrl : `${envUrl}/v1`;
+  }
+  return LMSTUDIO_DEFAULT_BASE_URL;
+}
 
 interface LMStudioModel {
   id: string;
@@ -102,8 +114,9 @@ async function discoverLMStudioModels(): Promise<ModelDefinitionConfig[]> {
   if (process.env.VITEST || process.env.NODE_ENV === "test") {
     return [];
   }
+  const baseUrl = resolveLMStudioBaseUrl();
   try {
-    const response = await fetch(`${LMSTUDIO_BASE_URL}/models`, {
+    const response = await fetch(`${baseUrl}/models`, {
       signal: AbortSignal.timeout(2000),
     });
     if (!response.ok) {
@@ -450,7 +463,7 @@ async function buildOllamaProvider(): Promise<ProviderConfig> {
 async function buildLMStudioProvider(): Promise<ProviderConfig> {
   const models = await discoverLMStudioModels();
   return {
-    baseUrl: LMSTUDIO_BASE_URL,
+    baseUrl: resolveLMStudioBaseUrl(),
     api: "openai-completions",
     models,
   };

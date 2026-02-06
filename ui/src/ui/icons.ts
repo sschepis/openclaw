@@ -9,19 +9,28 @@ export const icons = {
     <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="lobster-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ff4d4d"/>
-          <stop offset="100%" stop-color="#991b1b"/>
+          <stop offset="0%" stop-color="#ff4d4d" />
+          <stop offset="100%" stop-color="#991b1b" />
         </linearGradient>
       </defs>
-      <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#lobster-gradient)"/>
-      <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#lobster-gradient)"/>
-      <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#lobster-gradient)"/>
-      <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
-      <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
-      <circle cx="45" cy="35" r="6" fill="#050810"/>
-      <circle cx="75" cy="35" r="6" fill="#050810"/>
-      <circle cx="46" cy="34" r="2.5" fill="#00e5cc"/>
-      <circle cx="76" cy="34" r="2.5" fill="#00e5cc"/>
+      <path
+        d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z"
+        fill="url(#lobster-gradient)"
+      />
+      <path
+        d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z"
+        fill="url(#lobster-gradient)"
+      />
+      <path
+        d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z"
+        fill="url(#lobster-gradient)"
+      />
+      <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round" />
+      <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round" />
+      <circle cx="45" cy="35" r="6" fill="#050810" />
+      <circle cx="75" cy="35" r="6" fill="#050810" />
+      <circle cx="46" cy="34" r="2.5" fill="#00e5cc" />
+      <circle cx="76" cy="34" r="2.5" fill="#00e5cc" />
     </svg>
   `,
   lock: html`
@@ -194,7 +203,9 @@ export const icons = {
   `,
   layers: html`
     <svg viewBox="0 0 24 24">
-      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+      <path
+        d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"
+      />
       <path d="m22 12-8.58 3.9a2 2 0 0 1-1.66 0L2.6 12" />
       <path d="m22 17-8.58 3.9a2 2 0 0 1-1.66 0L2.6 17" />
     </svg>
@@ -370,7 +381,9 @@ export const icons = {
   `,
   alert: html`
     <svg viewBox="0 0 24 24">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+      <path
+        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+      ></path>
       <line x1="12" y1="9" x2="12" y2="13"></line>
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </svg>
@@ -410,13 +423,64 @@ export const icons = {
   `,
   command: html`
     <svg viewBox="0 0 24 24">
-      <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
+      <path
+        d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"
+      ></path>
     </svg>
   `,
   atSign: html`
     <svg viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="4"></circle>
       <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path>
+    </svg>
+  `,
+  play: html`
+    <svg viewBox="0 0 24 24">
+      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+    </svg>
+  `,
+  pause: html`
+    <svg viewBox="0 0 24 24">
+      <rect width="4" height="16" x="6" y="4"></rect>
+      <rect width="4" height="16" x="14" y="4"></rect>
+    </svg>
+  `,
+  maximize: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+      <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+      <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+    </svg>
+  `,
+  panelRightOpen: html`
+    <svg viewBox="0 0 24 24">
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+      <line x1="15" y1="3" x2="15" y2="21"></line>
+      <path d="m10 15-3-3 3-3"></path>
+    </svg>
+  `,
+  panelRightClose: html`
+    <svg viewBox="0 0 24 24">
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+      <line x1="15" y1="3" x2="15" y2="21"></line>
+      <path d="m7 9 3 3-3 3"></path>
+    </svg>
+  `,
+  alertTriangle: html`
+    <svg viewBox="0 0 24 24">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  `,
+  canvas: html`
+    <svg viewBox="0 0 24 24">
+      <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+      <path d="M7 7h4v4H7z"></path>
+      <path d="M13 7h4v4h-4z"></path>
+      <path d="M7 13h4v4H7z"></path>
+      <path d="M13 13h4v4h-4z"></path>
     </svg>
   `,
 } as const;

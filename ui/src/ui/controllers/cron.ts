@@ -40,6 +40,7 @@ export async function loadCronJobs(state: CronState) {
   state.cronLoading = true;
   state.cronError = null;
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("cron.list", {
       includeDisabled: true,
     })) as { jobs?: CronJob[] };
@@ -255,6 +256,7 @@ export async function loadCronRuns(state: CronState, jobId: string) {
     return;
   }
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("cron.runs", {
       id: jobId,
       limit: 50,

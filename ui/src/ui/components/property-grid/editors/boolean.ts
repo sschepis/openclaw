@@ -12,8 +12,7 @@ import type { PropertyRowContext } from "../types";
  */
 export function renderBooleanEditor(ctx: PropertyRowContext): TemplateResult {
   const { def, value, isModified, disabled, onPatch } = ctx;
-  const checked =
-    value === true || (value === undefined && def.defaultValue === true);
+  const checked = value === true || (value === undefined && def.defaultValue === true);
 
   return html`
     <label class="pg-editor pg-editor--boolean ${isModified ? "pg-editor--modified" : ""} ${disabled ? "pg-editor--disabled" : ""}">

@@ -59,7 +59,8 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
   const canClick = Boolean(onOpenSidebar);
   const handleClick = canClick
     ? () => {
-        const imagesMarkdown = card.images?.map(img => `![Screenshot](${img})`).join("\n\n") ?? "";
+        const imagesMarkdown =
+          card.images?.map((img) => `![Screenshot](${img})`).join("\n\n") ?? "";
         if (hasText || imagesMarkdown) {
           const text = card.text ? formatToolOutputForSidebar(card.text) : "";
           onOpenSidebar!(text + "\n\n" + imagesMarkdown);
@@ -115,13 +116,13 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
             `
           : nothing
       }
-      ${
-        card.images?.map(img => html`
+      ${card.images?.map(
+        (img) => html`
           <div class="chat-tool-card__image">
             <img src=${img} alt="Tool output" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" />
           </div>
-        `)
-      }
+        `,
+      )}
       ${
         showCollapsed
           ? html`<div class="chat-tool-card__preview mono">${getTruncatedPreview(card.text!)}</div>`
@@ -172,9 +173,9 @@ function extractToolImages(item: Record<string, unknown>): string[] {
   // Standard tool result with content array
   if (Array.isArray(item.content)) {
     for (const part of item.content) {
-      if (part && typeof part === 'object') {
-        if (part.type === 'image' && typeof part.data === 'string') {
-           images.push(`data:${part.mimeType || 'image/png'};base64,${part.data}`);
+      if (part && typeof part === "object") {
+        if (part.type === "image" && typeof part.data === "string") {
+          images.push(`data:${part.mimeType || "image/png"};base64,${part.data}`);
         }
       }
     }

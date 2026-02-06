@@ -685,14 +685,14 @@
   .chat-mobile-header {
     display: flex;
   }
-  
+
   .chat-sessions__close {
     display: inline-flex;
   }
-  
+
   /* Overlay when menu is open */
   .chat-sessions-pane--open::before {
-    content: '';
+    content: "";
     position: fixed;
     top: 0;
     left: 280px;
@@ -729,7 +729,10 @@
   cursor: pointer;
   z-index: 20;
   animation: scale-in 0.2s var(--ease-out);
-  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .chat-scroll-bottom:hover {
@@ -812,7 +815,9 @@
   margin: -4px -8px;
   border-radius: 6px;
   border: 1px solid transparent;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   outline: none;
   min-width: 60px;
 }
@@ -846,7 +851,9 @@
   margin: -2px -4px;
   border-radius: 4px;
   border: 1px solid transparent;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   outline: none;
   min-width: 40px;
   display: inline-block;
@@ -974,4 +981,109 @@
 :root[data-theme="light"] .nav-subitem--global.nav-subitem--active {
   background: rgba(255, 92, 92, 0.1);
   border-color: var(--accent);
+}
+
+/* =============================================
+   Conversation Status Indicator
+   ============================================= */
+
+.chat-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.chat-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chat-status__text {
+  line-height: 1;
+}
+
+/* Idle state - subtle gray */
+.chat-status--idle .chat-status__dot {
+  background: var(--muted);
+}
+
+/* Busy state - pulsing accent color */
+.chat-status--busy {
+  background: rgba(255, 92, 92, 0.1);
+  border-color: rgba(255, 92, 92, 0.3);
+  color: var(--accent);
+}
+
+.chat-status--busy .chat-status__dot {
+  background: var(--accent);
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* Sleeping state - calming blue/purple */
+.chat-status--sleeping {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.chat-status--sleeping .chat-status__dot {
+  background: #818cf8;
+  animation: status-breathe 3s ease-in-out infinite;
+}
+
+@keyframes status-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Light theme overrides */
+:root[data-theme="light"] .chat-status {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(16, 24, 40, 0.12);
+}
+
+:root[data-theme="light"] .chat-status--busy {
+  background: rgba(255, 92, 92, 0.08);
+  border-color: rgba(255, 92, 92, 0.25);
+}
+
+:root[data-theme="light"] .chat-status--sleeping {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.25);
+  color: #6366f1;
+}
+
+:root[data-theme="light"] .chat-status--sleeping .chat-status__dot {
+  background: #6366f1;
 }

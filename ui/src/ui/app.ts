@@ -1,13 +1,13 @@
 import { LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import type { EventLogEntry } from "./app-events";
+import type { CanvasVisualization } from "./components/canvas-visualization";
 import type { DevicePairingList } from "./controllers/devices";
 import type { ExecApprovalRequest } from "./controllers/exec-approval";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
 import type { Tab } from "./navigation";
 import type { ResolvedTheme, ThemeMode } from "./theme";
-import type { ActionMessage, TaskRecommendation } from "./types/chat-types";
 import type {
   ActivitiesListResult,
   AgentsListResult,
@@ -26,6 +26,7 @@ import type {
   StatusSummary,
   NostrProfile,
 } from "./types";
+import type { ActionMessage, TaskRecommendation } from "./types/chat-types";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
 import {
   handleChannelConfigReload as handleChannelConfigReloadInternal,
@@ -49,9 +50,14 @@ import {
   handleRerunFromMessage as handleRerunFromMessageInternal,
   handleEditMessage as handleEditMessageInternal,
 } from "./app-chat";
-
 import { DEFAULT_CRON_FORM, DEFAULT_LOG_LEVEL_FILTERS } from "./app-defaults";
 import { connectGateway as connectGatewayInternal } from "./app-gateway";
+import {
+  handleToggleMic as handleToggleMicInternal,
+  handleSpeak as handleSpeakInternal,
+  handleFileUpload as handleFileUploadInternal,
+  handleGlobalKeydown as handleGlobalKeydownInternal,
+} from "./app-input";
 import {
   handleConnected,
   handleDisconnected,
@@ -66,25 +72,6 @@ import {
   resetChatScroll as resetChatScrollInternal,
 } from "./app-scroll";
 import {
-  applySettings as applySettingsInternal,
-  loadCron as loadCronInternal,
-  loadOverview as loadOverviewInternal,
-  setTab as setTabInternal,
-  setTheme as setThemeInternal,
-  onPopState as onPopStateInternal,
-} from "./app-settings";
-import {
-  resetToolStream as resetToolStreamInternal,
-  type ToolStreamEntry,
-} from "./app-tool-stream";
-import { resolveInjectedAssistantIdentity } from "./assistant-identity";
-import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity";
-import { type SpeechRecognition } from "./speech";
-import { loadSettings, type UiSettings } from "./storage";
-import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types";
-import { SkillMessage } from "./controllers/skills";
-
-import {
   handleNewSession as handleNewSessionInternal,
   handleExportSession as handleExportSessionInternal,
   handleSessionsPatch as handleSessionsPatchInternal,
@@ -95,16 +82,18 @@ import {
   type SpawnSessionResult,
 } from "./app-sessions";
 import {
-  initiateDeleteSession,
-  executeDeleteSession,
-  cancelDeleteSession,
-} from "./controllers/sessions";
+  applySettings as applySettingsInternal,
+  loadCron as loadCronInternal,
+  loadOverview as loadOverviewInternal,
+  setTab as setTabInternal,
+  setTheme as setThemeInternal,
+  onPopState as onPopStateInternal,
+} from "./app-settings";
+import { handleSkillsViewChange as handleSkillsViewChangeInternal } from "./app-skills-handlers";
 import {
-  handleToggleMic as handleToggleMicInternal,
-  handleSpeak as handleSpeakInternal,
-  handleFileUpload as handleFileUploadInternal,
-  handleGlobalKeydown as handleGlobalKeydownInternal,
-} from "./app-input";
+  resetToolStream as resetToolStreamInternal,
+  type ToolStreamEntry,
+} from "./app-tool-stream";
 import {
   handleToggleSettings as handleToggleSettingsInternal,
   handleOpenSidebar as handleOpenSidebarInternal,
@@ -122,13 +111,21 @@ import {
   handleLogsAutoFollowToggle as handleLogsAutoFollowToggleInternal,
   handleCallDebugMethod as handleCallDebugMethodInternal,
 } from "./app-ui";
-import {
-  handleSkillsViewChange as handleSkillsViewChangeInternal,
-} from "./app-skills-handlers";
+import { resolveInjectedAssistantIdentity } from "./assistant-identity";
 import {
   loadActivities as loadActivitiesInternal,
   executeAction as executeActionInternal,
 } from "./controllers/activities";
+import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity";
+import {
+  initiateDeleteSession,
+  executeDeleteSession,
+  cancelDeleteSession,
+} from "./controllers/sessions";
+import { SkillMessage } from "./controllers/skills";
+import { type SpeechRecognition } from "./speech";
+import { loadSettings, type UiSettings } from "./storage";
+import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types";
 
 declare global {
   interface Window {
@@ -207,6 +204,13 @@ export class OpenClawApp extends LitElement {
   @state() slashAutocompleteMode: "slash" | "mention" = "slash";
   /** Slash autocomplete query (text after / or @) */
   @state() slashAutocompleteQuery = "";
+
+  /** Canvas visualizations created in this session */
+  @state() visualizations: CanvasVisualization[] = [];
+  /** Currently selected visualization for expanded view */
+  @state() selectedVisualization: CanvasVisualization | null = null;
+  /** Whether the context sidebar is open */
+  @state() contextSidebarOpen = false;
 
   @state() nodesLoading = false;
   @state() nodes: Array<Record<string, unknown>> = [];
@@ -313,6 +317,12 @@ export class OpenClawApp extends LitElement {
   @state() skillEdits: Record<string, string> = {};
   @state() skillsBusyKey: string | null = null;
   @state() skillMessages: Record<string, SkillMessage> = {};
+  @state() skillsExpandedGroups: Set<string> = new Set([
+    "openclaw-bundled",
+    "managed",
+    "workspace",
+  ]);
+  @state() skillsExpandedSkill: string | null = null;
 
   @state() debugLoading = false;
   @state() debugStatus: StatusSummary | null = null;
@@ -433,6 +443,7 @@ export class OpenClawApp extends LitElement {
     handleSkillsViewChangeInternal(this, view);
   }
 
+  // oxlint-disable-next-line typescript/no-explicit-any -- patch is a partial session update
   async handleSessionsPatch(key: string, patch: any) {
     await handleSessionsPatchInternal(this, key, patch);
   }
@@ -442,7 +453,7 @@ export class OpenClawApp extends LitElement {
   }
 
   async handleFileUpload(file: File) {
-    handleFileUploadInternal(this, file);
+    await handleFileUploadInternal(this, file);
   }
 
   async handleExportSession(key: string) {
@@ -660,7 +671,11 @@ export class OpenClawApp extends LitElement {
     await loadActivitiesInternal(this);
   }
 
-  async handleActivityAction(sessionKey: string, actionId: string, parameters?: Record<string, unknown>) {
+  async handleActivityAction(
+    sessionKey: string,
+    actionId: string,
+    parameters?: Record<string, unknown>,
+  ) {
     await executeActionInternal(this, sessionKey, actionId, parameters);
   }
 
@@ -707,6 +722,7 @@ export class OpenClawApp extends LitElement {
    * Initiate session delete confirmation (opens modal with child sessions).
    */
   async handleDeleteSessionConfirm(key: string) {
+    // oxlint-disable-next-line typescript/no-explicit-any -- session delete functions use broader type
     await initiateDeleteSession(this as any, key);
   }
 
@@ -714,6 +730,7 @@ export class OpenClawApp extends LitElement {
    * Execute session deletion (parent + all children).
    */
   async handleDeleteSessionExecute() {
+    // oxlint-disable-next-line typescript/no-explicit-any -- session delete functions use broader type
     await executeDeleteSession(this as any);
   }
 
@@ -721,6 +738,7 @@ export class OpenClawApp extends LitElement {
    * Cancel session deletion and close modal.
    */
   handleDeleteSessionCancel() {
+    // oxlint-disable-next-line typescript/no-explicit-any -- session delete functions use broader type
     cancelDeleteSession(this as any);
   }
 
@@ -752,7 +770,10 @@ export class OpenClawApp extends LitElement {
    * Spawns a blank session (convenience method).
    * By default, creates in the background without switching focus.
    */
-  async spawnBlankSession(options?: { switchFocus?: boolean; displayName?: string }): Promise<SpawnSessionResult> {
+  async spawnBlankSession(options?: {
+    switchFocus?: boolean;
+    displayName?: string;
+  }): Promise<SpawnSessionResult> {
     return spawnBlankSessionInternal(this, options);
   }
 
@@ -760,9 +781,11 @@ export class OpenClawApp extends LitElement {
    * Spawns a clone of the current or specified session (convenience method).
    * By default, creates in the background without switching focus.
    */
-  async spawnCloneSession(
-    options?: { sourceSessionKey?: string; switchFocus?: boolean; displayName?: string },
-  ): Promise<SpawnSessionResult> {
+  async spawnCloneSession(options?: {
+    sourceSessionKey?: string;
+    switchFocus?: boolean;
+    displayName?: string;
+  }): Promise<SpawnSessionResult> {
     return spawnCloneSessionInternal(this, options);
   }
 
@@ -809,7 +832,60 @@ export class OpenClawApp extends LitElement {
     this.slashAutocompleteQuery = "";
   }
 
+  /**
+   * Toggle the context sidebar open/closed.
+   */
+  handleToggleContextSidebar() {
+    this.contextSidebarOpen = !this.contextSidebarOpen;
+  }
+
+  /**
+   * Select a visualization for expanded view in the context sidebar.
+   */
+  handleSelectVisualization(viz: CanvasVisualization | null) {
+    this.selectedVisualization = viz;
+  }
+
+  /**
+   * Open a visualization in the main chat area (via the markdown sidebar).
+   */
+  handleOpenVisualization(viz: CanvasVisualization) {
+    // Format visualization as markdown for the existing sidebar
+    const markdown = `## ${viz.title}\n\n\`\`\`canvas\n${viz.code}\n\`\`\`\n\n${viz.description || ""}`;
+    this.handleOpenSidebar(markdown);
+  }
+
+  /**
+   * Add a visualization to the session's visualization list.
+   */
+  addVisualization(viz: CanvasVisualization) {
+    // Avoid duplicates by checking ID
+    if (this.visualizations.some((v) => v.id === viz.id)) {
+      return;
+    }
+    this.visualizations = [...this.visualizations, viz];
+  }
+
+  /**
+   * Remove a visualization from the session's visualization list.
+   */
+  removeVisualization(vizId: string) {
+    this.visualizations = this.visualizations.filter((v) => v.id !== vizId);
+    if (this.selectedVisualization?.id === vizId) {
+      this.selectedVisualization = null;
+    }
+  }
+
+  /**
+   * Clear all visualizations for the current session.
+   */
+  clearVisualizations() {
+    this.visualizations = [];
+    this.selectedVisualization = null;
+  }
+
   render() {
+    // oxlint-disable-next-line typescript/no-explicit-any -- renderApp uses broader type
     return renderApp(this as any);
   }
 }

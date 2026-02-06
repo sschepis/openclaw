@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type { JsonSchema } from "../types";
 import {
   flattenSchema,
   schemaType,
@@ -14,7 +15,6 @@ import {
   getValueAtPath,
   valuesAreDifferent,
 } from "./flatten";
-import type { JsonSchema } from "../types";
 
 describe("schemaType", () => {
   it("returns undefined for empty schema", () => {
@@ -254,11 +254,7 @@ describe("flattenSchema", () => {
 
     const result = flattenSchema(schema, {}, hints);
 
-    expect(result.definitions.map((d) => d.pathKey)).toEqual([
-      "zeta",
-      "beta",
-      "alpha",
-    ]);
+    expect(result.definitions.map((d) => d.pathKey)).toEqual(["zeta", "beta", "alpha"]);
   });
 
   it("handles enum types", () => {

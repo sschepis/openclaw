@@ -8,9 +8,7 @@ export function renderChatSettings(state: AppViewState) {
     return nothing;
   }
 
-  const activeSession = state.sessionsResult?.sessions?.find(
-    (s) => s.key === state.sessionKey,
-  );
+  const activeSession = state.sessionsResult?.sessions?.find((s) => s.key === state.sessionKey);
 
   if (!activeSession) {
     return nothing;
@@ -21,7 +19,9 @@ export function renderChatSettings(state: AppViewState) {
 
   const isMainSession = activeSession.key === state.agentsList?.mainKey;
   const relevantJobs = state.cronJobs.filter((job) => {
-    if (isMainSession && job.sessionTarget === "main") return true;
+    if (isMainSession && job.sessionTarget === "main") {
+      return true;
+    }
     return false;
   });
 
@@ -46,12 +46,12 @@ export function renderChatSettings(state: AppViewState) {
               .value=${currentModel}
               @change=${(e: Event) => {
                 const value = (e.target as HTMLSelectElement).value;
-                state.handleSessionsPatch(activeSession.key, { model: value || null });
+                void state.handleSessionsPatch(activeSession.key, { model: value || null });
               }}
             >
               <option value="">Default</option>
-              ${models.map(
-                (m: any) => html`
+              ${(models as Array<{ id: string; provider: string }>).map(
+                (m) => html`
                 <option value=${m.id}>${m.id} (${m.provider})</option>
               `,
               )}
@@ -64,7 +64,7 @@ export function renderChatSettings(state: AppViewState) {
               .value=${activeSession.thinkingLevel ?? ""}
               @change=${(e: Event) => {
                 const value = (e.target as HTMLSelectElement).value;
-                state.handleSessionsPatch(activeSession.key, { thinkingLevel: value || null });
+                void state.handleSessionsPatch(activeSession.key, { thinkingLevel: value || null });
               }}
             >
               <option value="">Default</option>
@@ -81,7 +81,9 @@ export function renderChatSettings(state: AppViewState) {
         <div class="card-title" style="font-size: 14px; font-weight: 600;">Scheduled Jobs</div>
         ${
           relevantJobs.length === 0
-            ? html`<div class="muted" style="margin-top: 8px;">No jobs targeting this session.</div>`
+            ? html`
+                <div class="muted" style="margin-top: 8px">No jobs targeting this session.</div>
+              `
             : html`
             <div class="list" style="margin-top: 8px;">
               ${relevantJobs.map(

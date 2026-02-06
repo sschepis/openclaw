@@ -21,36 +21,49 @@ export function renderThinkingPanel(state: ThinkingState) {
     return nothing;
   }
 
-  const activeAction = state.actions.find(a => a.status === "running");
+  const activeAction = state.actions.find((a) => a.status === "running");
   const displayStatus = activeAction ? activeAction.label : state.status || "Thinking...";
 
   return html`
     <div class="thinking-panel">
       <div class="thinking-header">
         <div class="thinking-loader">
-          ${state.active ? html`<div class="thinking-spinner"></div>` : icons.check}
+          ${
+            state.active
+              ? html`
+                  <div class="thinking-spinner"></div>
+                `
+              : icons.check
+          }
         </div>
         <div class="thinking-status">${displayStatus}</div>
       </div>
       
-      ${state.actions.length > 0 ? html`
+      ${
+        state.actions.length > 0
+          ? html`
         <div class="thinking-actions">
-          ${state.actions.map(action => renderAction(action))}
+          ${state.actions.map((action) => renderAction(action))}
         </div>
-      ` : nothing}
+      `
+          : nothing
+      }
     </div>
   `;
 }
 
 function renderAction(action: ThinkingAction) {
-  const icon = action.status === "running" 
-    ? html`<div class="thinking-dot-pulse"></div>`
-    : action.status === "error" 
-      ? icons.alert
-      : icons.check;
-      
+  const icon =
+    action.status === "running"
+      ? html`
+          <div class="thinking-dot-pulse"></div>
+        `
+      : action.status === "error"
+        ? icons.alert
+        : icons.check;
+
   const classes = `thinking-action ${action.status}`;
-  
+
   return html`
     <div class="${classes}">
       <div class="thinking-action-icon">${icon}</div>
@@ -64,5 +77,10 @@ function renderAction(action: ThinkingAction) {
 }
 
 function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(ts).toLocaleTimeString([], {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }

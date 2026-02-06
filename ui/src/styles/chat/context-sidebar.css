@@ -1,0 +1,369 @@
+/* Context Sidebar - Right-hand collapsible panel */
+
+.context-sidebar-toggle {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 28px;
+  height: 48px;
+  padding: 0;
+
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+
+  background: var(--panel);
+  color: var(--text-muted);
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.context-sidebar-toggle:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.context-sidebar-toggle--open {
+  right: 280px;
+}
+
+.context-sidebar-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.context-sidebar-badge {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Main sidebar panel */
+.context-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 280px;
+  z-index: 99;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+
+  animation: context-sidebar-slide-in 0.2s ease-out;
+}
+
+@keyframes context-sidebar-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.context-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.context-sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.context-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+/* Sections */
+.context-sidebar-section {
+  margin-bottom: 8px;
+}
+
+.context-sidebar-section--info {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.context-sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.context-sidebar-section-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-sidebar-section-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.context-sidebar-section-title {
+  flex: 1;
+}
+
+.context-sidebar-section-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--hover);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Empty state */
+.context-sidebar-empty {
+  padding: 12px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.context-sidebar-empty-hint {
+  margin-top: 4px;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* List items */
+.context-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.context-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  transition: background 0.15s ease;
+}
+
+.context-sidebar-item:hover {
+  background: var(--hover);
+}
+
+/* Visualization items */
+.context-sidebar-viz-item {
+  display: flex;
+  align-items: center;
+}
+
+.context-sidebar-viz-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.context-sidebar-viz-btn:hover {
+  background: var(--hover);
+}
+
+.context-sidebar-viz-btn.selected {
+  background: rgba(var(--accent-rgb, 0, 229, 204), 0.15);
+  border: 1px solid var(--accent);
+}
+
+.context-sidebar-viz-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.context-sidebar-viz-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Cron job items */
+.context-sidebar-cron-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.context-sidebar-cron-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.context-sidebar-cron-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.context-sidebar-cron-status svg {
+  width: 14px;
+  height: 14px;
+}
+
+.context-sidebar-cron-status.enabled {
+  color: var(--success, #22c55e);
+}
+
+.context-sidebar-cron-status.disabled {
+  color: var(--text-muted);
+}
+
+.context-sidebar-cron-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.context-sidebar-cron-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-sidebar-cron-schedule {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.context-sidebar-cron-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Action buttons */
+.context-sidebar-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.context-sidebar-action-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.context-sidebar-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Session info section */
+.context-sidebar-info-content {
+  padding: 8px 16px;
+}
+
+.context-sidebar-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.context-sidebar-info-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.context-sidebar-info-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Adjust main chat layout when sidebar is open */
+.chat-layout-wrapper--with-context-sidebar .chat-main-pane {
+  margin-right: 280px;
+  transition: margin-right 0.2s ease;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .context-sidebar-toggle {
+    display: none;
+  }
+
+  .context-sidebar {
+    width: 100%;
+    border-left: none;
+  }
+
+  .chat-layout-wrapper--with-context-sidebar .chat-main-pane {
+    margin-right: 0;
+  }
+}

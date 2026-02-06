@@ -37,16 +37,20 @@ export function renderSecrets(props: SecretsProps) {
         </div>
       </div>
 
-      ${props.error
-        ? html`<div class="callout danger" style="margin-top: 12px;">${props.error}</div>`
-        : nothing}
+      ${
+        props.error
+          ? html`<div class="callout danger" style="margin-top: 12px;">${props.error}</div>`
+          : nothing
+      }
 
       <div class="list" style="margin-top: 16px;">
-        ${props.keys.length === 0
-          ? html`<div class="muted" style="padding: 20px; text-align: center;">
+        ${
+          props.keys.length === 0
+            ? html`<div class="muted" style="padding: 20px; text-align: center;">
               ${props.loading ? "Loading secrets..." : "No secrets found."}
             </div>`
-          : props.keys.map((key) => renderSecretItem(key, props))}
+            : props.keys.map((key) => renderSecretItem(key, props))
+        }
       </div>
     </section>
 
@@ -100,11 +104,13 @@ function renderSecretForm(
               @input=${(e: Event) =>
                 props.onFormUpdate({ key: (e.target as HTMLInputElement).value })}
             />
-            ${isEditing
-              ? html`<div class="muted" style="font-size: 11px;">
-                  Key cannot be changed once created.
-                </div>`
-              : nothing}
+            ${
+              isEditing
+                ? html`
+                    <div class="muted" style="font-size: 11px">Key cannot be changed once created.</div>
+                  `
+                : nothing
+            }
           </div>
 
           <div class="field">

@@ -194,6 +194,52 @@ export function resolveConfiguredModelRef(params: {
   return { provider: params.defaultProvider, model: params.defaultModel };
 }
 
+/**
+ * Maps provider IDs to their corresponding environment variable names for model overrides.
+ * When a secret like OPENAI_MODEL is set, it overrides the default model for that provider.
+ */
+const MODEL_OVERRIDE_ENV_MAP: Record<string, string> = {
+  openai: "OPENAI_MODEL",
+  openrouter: "OPENROUTER_MODEL",
+  "google-vertex": "VERTEX_MODEL",
+  lmstudio: "LMSTUDIO_MODEL",
+  // Common aliases
+  google: "GEMINI_MODEL",
+  anthropic: "ANTHROPIC_MODEL",
+};
+
+/**
+ * Resolves a model override from environment variables for a given provider.
+ * Returns the overridden model ID if one is set, otherwise undefined.
+ */
+export function resolveEnvModelOverride(provider: string): string | undefined {
+  const normalized = normalizeProviderId(provider);
+  const envVar = MODEL_OVERRIDE_ENV_MAP[normalized];
+  if (!envVar) {
+    return undefined;
+  }
+  const value = process.env[envVar]?.trim();
+  return value || undefined;
+}
+
+/**
+ * Resolves the default model for a provider, considering environment variable overrides.
+ * Priority: env override > config model > catalog default
+ */
+export function resolveProviderDefaultModel(params: {
+  provider: string;
+  cfg?: OpenClawConfig;
+  catalogDefault?: string;
+}): string | undefined {
+  // Check for environment variable override first (can be set via secrets)
+  const envOverride = resolveEnvModelOverride(params.provider);
+  if (envOverride) {
+    return envOverride;
+  }
+  // Fall back to catalog or config default
+  return params.catalogDefault;
+}
+
 export function resolveDefaultModelForAgent(params: {
   cfg: OpenClawConfig;
   agentId?: string;

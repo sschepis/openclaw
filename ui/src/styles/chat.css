@@ -5,3 +5,5 @@
 @import "./chat/sidebar.css";
 @import "./chat/thinking.css";
 @import "./chat/recommendations.css";
+@import "./chat/canvas.css";
+@import "./chat/context-sidebar.css";

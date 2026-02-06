@@ -13,6 +13,8 @@ export type SkillsState = {
   registryLoading: boolean;
   registryError: string | null;
   registryList: RegistrySkill[];
+  skillsExpandedGroups: Set<string>;
+  skillsExpandedSkill: string | null;
 };
 
 export type RegistrySkill = {
@@ -68,7 +70,7 @@ export async function loadSkills(state: SkillsState, options?: LoadSkillsOptions
   try {
     const res = await state.client.request("skills.status", {});
     if (res) {
-      state.skillsReport = res as any;
+      state.skillsReport = res as SkillStatusReport;
     }
   } catch (err) {
     state.skillsError = getErrorMessage(err);
@@ -144,11 +146,12 @@ export async function installSkill(
   state.skillsBusyKey = skillKey;
   state.skillsError = null;
   try {
-    const result = await state.client.request("skills.install", {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
+    const result = (await state.client.request("skills.install", {
       name,
       installId,
       timeoutMs: 120000,
-    }) as { message?: string };
+    })) as { message?: string };
     await loadSkills(state);
     setSkillMessage(state, skillKey, {
       kind: "success",
@@ -171,15 +174,34 @@ export async function loadSkillsRegistry(state: SkillsState) {
   state.registryError = null;
   try {
     // Mock fetch
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     state.registryList = [
       { id: "weather", name: "Weather", description: "Get weather forecasts", author: "OpenClaw" },
       { id: "news", name: "News", description: "Search latest news", author: "OpenClaw" },
-      { id: "calculator", name: "Calculator", description: "Perform math calculations", author: "OpenClaw" },
+      {
+        id: "calculator",
+        name: "Calculator",
+        description: "Perform math calculations",
+        author: "OpenClaw",
+      },
     ];
   } catch (err) {
     state.registryError = String(err);
   } finally {
     state.registryLoading = false;
   }
+}
+
+export function toggleSkillGroup(state: SkillsState, group: string) {
+  const next = new Set(state.skillsExpandedGroups);
+  if (next.has(group)) {
+    next.delete(group);
+  } else {
+    next.add(group);
+  }
+  state.skillsExpandedGroups = next;
+}
+
+export function toggleSkillExpanded(state: SkillsState, skillKey: string | null) {
+  state.skillsExpandedSkill = skillKey;
 }

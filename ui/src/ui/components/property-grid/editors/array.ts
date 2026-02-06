@@ -14,9 +14,7 @@ import { defaultValue } from "../utils/flatten";
 export function renderArrayEditor(ctx: PropertyRowContext): TemplateResult {
   const { def, value, isModified, disabled, onPatch, onExpand } = ctx;
   const arr = Array.isArray(value) ? value : [];
-  const itemSchema = Array.isArray(def.schema.items)
-    ? def.schema.items[0]
-    : def.schema.items;
+  const itemSchema = Array.isArray(def.schema.items) ? def.schema.items[0] : def.schema.items;
 
   return html`
     <div class="pg-editor pg-editor--array ${isModified ? "pg-editor--modified" : ""}">
@@ -33,8 +31,9 @@ export function renderArrayEditor(ctx: PropertyRowContext): TemplateResult {
           ${arr.length} item${arr.length !== 1 ? "s" : ""}
         </span>
       </button>
-      ${itemSchema
-        ? html`
+      ${
+        itemSchema
+          ? html`
             <button
               type="button"
               class="pg-editor__array-add"
@@ -49,7 +48,8 @@ export function renderArrayEditor(ctx: PropertyRowContext): TemplateResult {
               +
             </button>
           `
-        : nothing}
+          : nothing
+      }
     </div>
   `;
 }
@@ -63,13 +63,14 @@ export function renderArrayItemControls(
   disabled: boolean,
   onDelete: () => void,
   onMoveUp?: () => void,
-  onMoveDown?: () => void
+  onMoveDown?: () => void,
 ): TemplateResult {
   return html`
     <div class="pg-editor__array-item-controls">
       <span class="pg-editor__array-item-index">#${index + 1}</span>
-      ${onMoveUp && index > 0
-        ? html`
+      ${
+        onMoveUp && index > 0
+          ? html`
             <button
               type="button"
               class="pg-editor__array-item-btn"
@@ -80,9 +81,11 @@ export function renderArrayItemControls(
               ↑
             </button>
           `
-        : nothing}
-      ${onMoveDown && index < total - 1
-        ? html`
+          : nothing
+      }
+      ${
+        onMoveDown && index < total - 1
+          ? html`
             <button
               type="button"
               class="pg-editor__array-item-btn"
@@ -93,7 +96,8 @@ export function renderArrayItemControls(
               ↓
             </button>
           `
-        : nothing}
+          : nothing
+      }
       <button
         type="button"
         class="pg-editor__array-item-btn pg-editor__array-item-btn--delete"

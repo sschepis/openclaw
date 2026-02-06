@@ -116,6 +116,7 @@ describe("control UI routing", () => {
     const app = mountApp("/chat");
     await app.updateComplete;
 
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- explicit cast for test clarity
     const initialContainer = app.querySelector(".chat-thread") as HTMLElement | null;
     expect(initialContainer).not.toBeNull();
     if (!initialContainer) {

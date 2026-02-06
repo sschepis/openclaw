@@ -3,14 +3,25 @@ import { repeat } from "lit/directives/repeat.js";
 import type { AppViewState } from "./app-view-state";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
-import type { GatewaySessionRow, SessionsListResult, GLOBAL_SESSION_KEY, GLOBAL_SESSION_DISPLAY_NAME } from "./types";
-import { GLOBAL_SESSION_KEY as GLOBAL_KEY, GLOBAL_SESSION_DISPLAY_NAME as GLOBAL_NAME } from "./types";
+import type { SessionsListResult } from "./types";
 import { refreshChat } from "./app-chat";
 import { syncUrlWithSessionKey } from "./app-settings";
 import { loadChatHistory } from "./controllers/chat";
 import { formatAgo } from "./format";
 import { icons } from "./icons";
-import { iconForTab, pathForTab, titleForTab, isExpandableTab, EXPANDABLE_TAB_CONFIG, type Tab, type ExpandableTab } from "./navigation";
+import {
+  iconForTab,
+  pathForTab,
+  titleForTab,
+  isExpandableTab,
+  EXPANDABLE_TAB_CONFIG,
+  type Tab,
+  type ExpandableTab,
+} from "./navigation";
+import {
+  GLOBAL_SESSION_KEY as GLOBAL_KEY,
+  GLOBAL_SESSION_DISPLAY_NAME as GLOBAL_NAME,
+} from "./types";
 
 export function renderTab(state: AppViewState, tab: Tab) {
   const href = pathForTab(tab, state.basePath);
@@ -110,7 +121,11 @@ export function renderChatControls(state: AppViewState) {
               lastActiveSessionKey: next,
             });
             void state.loadAssistantIdentity();
-            syncUrlWithSessionKey(state as any, next, true);
+            syncUrlWithSessionKey(
+              state as unknown as Parameters<typeof syncUrlWithSessionKey>[0],
+              next,
+              true,
+            );
             void loadChatHistory(state);
           }}
         >
@@ -234,7 +249,7 @@ function resolveSessionOptions(
     seen.add(mainSessionKey);
     options.push({
       key: mainSessionKey,
-      displayName: resolveSessionDisplayName(mainSessionKey, resolvedMain as any),
+      displayName: resolveSessionDisplayName(mainSessionKey, resolvedMain || undefined),
     });
   }
 
@@ -407,7 +422,9 @@ export function renderExpandableTab(state: AppViewState, tab: Tab) {
           <span class="nav-item__text">${titleForTab(tab)}</span>
         </a>
         <div class="nav-item-expandable__actions">
-          ${config.hasAddButton ? html`
+          ${
+            config.hasAddButton
+              ? html`
             <button
               class="nav-item-expandable__add"
               @click=${handleAddClick}
@@ -416,7 +433,9 @@ export function renderExpandableTab(state: AppViewState, tab: Tab) {
             >
               ${icons.plus}
             </button>
-          ` : nothing}
+          `
+              : nothing
+          }
           <button
             class="nav-item-expandable__toggle"
             @click=${handleExpandClick}
@@ -427,10 +446,14 @@ export function renderExpandableTab(state: AppViewState, tab: Tab) {
           </button>
         </div>
       </div>
-      ${isExpanded && subItems.length > 0 ? html`
+      ${
+        isExpanded && subItems.length > 0
+          ? html`
         <div class="nav-subitems">
           ${visibleItems.map((item) => renderSubItem(state, tab, item))}
-          ${hasMore ? html`
+          ${
+            hasMore
+              ? html`
             <a
               href=${href}
               class="nav-subitem nav-subitem--more"
@@ -438,9 +461,13 @@ export function renderExpandableTab(state: AppViewState, tab: Tab) {
             >
               <span class="nav-subitem__text">${config.showMoreLabel} (${subItems.length - config.maxVisibleItems} more)</span>
             </a>
-          ` : nothing}
+          `
+              : nothing
+          }
         </div>
-      ` : nothing}
+      `
+          : nothing
+      }
     </div>
   `;
 }
@@ -473,18 +500,18 @@ type SubItem = {
 
 function getChatSessionSubItems(state: AppViewState): SubItem[] {
   const sessions = state.sessionsResult?.sessions ?? [];
-  
+
   // Find the Global session if it exists, or create a placeholder
   const globalSession = sessions.find((s) => s.key === GLOBAL_KEY || s.kind === "global");
-  
+
   // Filter to regular chat-type sessions (non-global) and sort by most recent
   const chatSessions = sessions
     .filter((s) => s.key !== GLOBAL_KEY && s.kind !== "global")
-    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-  
+    .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+
   // Build the result array with Global session always first
   const result: SubItem[] = [];
-  
+
   // Always add Global session first (even if not in server response)
   result.push({
     key: GLOBAL_KEY,
@@ -494,7 +521,7 @@ function getChatSessionSubItems(state: AppViewState): SubItem[] {
     protected: true,
     isGlobal: true,
   });
-  
+
   // Add remaining sessions
   for (const session of chatSessions) {
     result.push({
@@ -504,7 +531,7 @@ function getChatSessionSubItems(state: AppViewState): SubItem[] {
       active: session.key === state.sessionKey,
     });
   }
-  
+
   return result;
 }
 
@@ -549,11 +576,19 @@ function renderSubItem(state: AppViewState, tab: ExpandableTab, item: SubItem) {
         title=${item.isGlobal ? `${item.label} - View all session histories` : item.label}
       >
         ${item.isGlobal ? html`<span class="nav-subitem__global-icon" aria-hidden="true">${icons.globe}</span>` : nothing}
-        ${item.status ? html`<span class="nav-subitem__status" aria-hidden="true"></span>` : nothing}
+        ${
+          item.status
+            ? html`
+                <span class="nav-subitem__status" aria-hidden="true"></span>
+              `
+            : nothing
+        }
         <span class="nav-subitem__text">${item.label}</span>
         ${item.sublabel ? html`<span class="nav-subitem__sublabel">${item.sublabel}</span>` : nothing}
       </button>
-      ${canDelete ? html`
+      ${
+        canDelete
+          ? html`
         <button
           class="nav-subitem__delete"
           @click=${handleDeleteClick}
@@ -562,7 +597,9 @@ function renderSubItem(state: AppViewState, tab: ExpandableTab, item: SubItem) {
         >
           ${icons.trash}
         </button>
-      ` : nothing}
+      `
+          : nothing
+      }
     </div>
   `;
 }

@@ -43,8 +43,12 @@ export class SecretsInteractionManager extends EventEmitter {
 
   async waitForResolution(id: string): Promise<string | null> {
     const record = this.pending.get(id);
-    if (!record) return null;
-    if (record.resolved) return record.value ?? null;
+    if (!record) {
+      return null;
+    }
+    if (record.resolved) {
+      return record.value ?? null;
+    }
 
     return new Promise((resolve) => {
       record.resolve = resolve;
@@ -53,7 +57,9 @@ export class SecretsInteractionManager extends EventEmitter {
 
   resolve(id: string, value: string | null): boolean {
     const record = this.pending.get(id);
-    if (!record || record.resolved) return false;
+    if (!record || record.resolved) {
+      return false;
+    }
 
     record.resolved = true;
     record.value = value;

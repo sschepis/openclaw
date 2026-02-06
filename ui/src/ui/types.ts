@@ -592,23 +592,23 @@ export type ActivityAction = {
 export type ActivityState = {
   sessionKey: string;
   sessionId: string;
-  
+
   // Core metadata
   label?: string;
   displayName: string;
   updatedAt: number | null;
   isActive: boolean;
-  
+
   // AI-extracted state (populated in Phase 2)
   taskType: ActivityTaskType;
   phase: string;
   progress: number | null;
   summary: string;
   stateValues: Record<string, StateValue>;
-  
+
   // Available actions (populated in Phase 2)
   actions: ActivityAction[];
-  
+
   // Visualization hints (populated in Phase 2)
   visualization: VisualizationType;
   visualizationData: Record<string, unknown>;

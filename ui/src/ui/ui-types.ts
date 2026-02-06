@@ -36,6 +36,17 @@ export type SessionDeleteConfirmState = {
   error: string | null;
 };
 
+/**
+ * Conversation status indicates the current state of the conversation.
+ * - idle: No active processing or scheduled tasks
+ * - busy: Agent is currently processing/generating a response
+ * - sleeping: A task is scheduled to run in the future
+ */
+export type ConversationStatus =
+  | { kind: "idle" }
+  | { kind: "busy" }
+  | { kind: "sleeping"; nextRunAtMs: number };
+
 export type CronFormState = {
   name: string;
   description: string;

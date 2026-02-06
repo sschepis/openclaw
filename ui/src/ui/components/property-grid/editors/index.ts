@@ -5,13 +5,13 @@
  */
 
 import { html, type TemplateResult } from "lit";
-import type { PropertyRowContext, PropertyType, EditorRegistry } from "../types";
-import { renderStringEditor } from "./string";
-import { renderNumberEditor } from "./number";
+import type { PropertyRowContext, EditorRegistry } from "../types";
+import { renderArrayEditor } from "./array";
 import { renderBooleanEditor } from "./boolean";
 import { renderEnumEditor } from "./enum";
-import { renderArrayEditor } from "./array";
+import { renderNumberEditor } from "./number";
 import { renderObjectEditor } from "./object";
+import { renderStringEditor } from "./string";
 
 /**
  * Default editor registry
@@ -31,7 +31,7 @@ const defaultEditors: EditorRegistry = {
  */
 export function renderEditor(
   ctx: PropertyRowContext,
-  customEditors?: EditorRegistry
+  customEditors?: EditorRegistry,
 ): TemplateResult {
   const { def } = ctx;
   const editors = { ...defaultEditors, ...customEditors };

@@ -96,6 +96,21 @@ img.chat-avatar {
   object-position: center;
 }
 
+/* SVG icon avatar support (OpenClaw lobster) */
+.chat-avatar--icon {
+  padding: 4px;
+  background: transparent;
+}
+
+.chat-avatar--icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.chat-avatar--icon.assistant {
+  background: transparent;
+}
+
 /* Minimal Bubble Design - dynamic width based on content */
 .chat-bubble {
   position: relative;

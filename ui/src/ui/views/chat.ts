@@ -1,9 +1,20 @@
 import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
-import type { SessionsListResult } from "../types";
-import type { ActionMessage, ChatItem, MessageGroup, TaskRecommendation } from "../types/chat-types";
-import type { ChatAttachment, ChatQueueItem } from "../ui-types";
+import type { CanvasVisualization } from "../components/canvas-visualization";
+import type {
+  AgentMention,
+  AutocompleteSuggestion,
+} from "../components/slash-autocomplete/slash-autocomplete";
+import type { ThinkingState } from "../components/thinking-panel";
+import type { SessionsListResult, CronJob } from "../types";
+import type {
+  ActionMessage,
+  ChatItem,
+  MessageGroup,
+  TaskRecommendation,
+} from "../types/chat-types";
+import type { ChatAttachment, ChatQueueItem, ConversationStatus } from "../ui-types";
 import {
   renderActionMessage,
   renderMessageGroup,
@@ -11,13 +22,12 @@ import {
   renderStreamingGroup,
 } from "../chat/grouped-render";
 import { normalizeMessage, normalizeRoleForGrouping } from "../chat/message-normalizer";
-import { icons } from "../icons";
-import { renderMarkdownSidebar } from "./markdown-sidebar";
-import type { ThinkingState } from "../components/thinking-panel";
+import { renderContextSidebar } from "../components/context-sidebar";
+import { getSlashCommands } from "../components/slash-autocomplete/default-slash-commands";
 import "../components/resizable-divider";
 import "../components/slash-autocomplete/slash-autocomplete";
-import type { SlashCommand, AgentMention, AutocompleteSuggestion } from "../components/slash-autocomplete/slash-autocomplete";
-import { getSlashCommands } from "../components/slash-autocomplete/default-slash-commands";
+import { icons } from "../icons";
+import { renderMarkdownSidebar } from "./markdown-sidebar";
 
 export type CompactionIndicatorStatus = {
   active: boolean;
@@ -104,6 +114,19 @@ export type ChatProps = {
   isGroupChat?: boolean;
   onSlashAutocompleteSelect?: (suggestion: AutocompleteSuggestion) => void;
   onSlashAutocompleteClose?: () => void;
+  // Context sidebar (right-hand panel)
+  contextSidebarOpen?: boolean;
+  onToggleContextSidebar?: () => void;
+  // Visualizations
+  visualizations?: CanvasVisualization[];
+  selectedVisualization?: CanvasVisualization | null;
+  onSelectVisualization?: (viz: CanvasVisualization | null) => void;
+  onOpenVisualization?: (viz: CanvasVisualization) => void;
+  onAddVisualization?: (viz: CanvasVisualization, sessionKey: string) => void;
+  // Cron jobs for sidebar
+  cronJobs?: CronJob[];
+  onToggleCronJob?: (job: CronJob, enabled: boolean) => void;
+  onRunCronJob?: (job: CronJob) => void;
 };
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
@@ -144,6 +167,99 @@ function renderCompactionIndicator(status: CompactionIndicatorStatus | null | un
 
 function generateAttachmentId(): string {
   return `att-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/**
+ * Formats a duration in milliseconds to a human-readable string.
+ * Examples: "2 minutes", "1 hour", "3 hours 15 minutes"
+ */
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours} hour${hours !== 1 ? "s" : ""} ${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""}`;
+  }
+  if (hours > 0) {
+    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  }
+  if (minutes > 0) {
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+  }
+  return "less than a minute";
+}
+
+/**
+ * Computes the conversation status based on chat state and scheduled jobs.
+ */
+function computeConversationStatus(
+  sending: boolean,
+  stream: string | null,
+  cronJobs: Array<{ enabled: boolean; state?: { nextRunAtMs?: number } }> | undefined,
+): ConversationStatus {
+  // Busy: currently sending or streaming a response
+  if (sending || stream !== null) {
+    return { kind: "busy" };
+  }
+
+  // Check for scheduled jobs
+  if (cronJobs && cronJobs.length > 0) {
+    const now = Date.now();
+    let earliestNextRun: number | null = null;
+
+    for (const job of cronJobs) {
+      if (!job.enabled) {
+        continue;
+      }
+      const nextRunAt = job.state?.nextRunAtMs;
+      if (nextRunAt != null && nextRunAt > now) {
+        if (earliestNextRun === null || nextRunAt < earliestNextRun) {
+          earliestNextRun = nextRunAt;
+        }
+      }
+    }
+
+    if (earliestNextRun !== null) {
+      return { kind: "sleeping", nextRunAtMs: earliestNextRun };
+    }
+  }
+
+  // Default: idle
+  return { kind: "idle" };
+}
+
+/**
+ * Renders the conversation status indicator (Idle, Busy, Sleeping for X).
+ */
+function renderConversationStatus(status: ConversationStatus) {
+  switch (status.kind) {
+    case "idle":
+      return html`
+        <span class="chat-status chat-status--idle" title="Idle - Ready for input">
+          <span class="chat-status__dot"></span>
+          <span class="chat-status__text">Idle</span>
+        </span>
+      `;
+    case "busy":
+      return html`
+        <span class="chat-status chat-status--busy" title="Busy - Processing response">
+          <span class="chat-status__dot"></span>
+          <span class="chat-status__text">Busy</span>
+        </span>
+      `;
+    case "sleeping": {
+      const timeUntil = status.nextRunAtMs - Date.now();
+      const durationText = formatDuration(Math.max(0, timeUntil));
+      return html`
+        <span class="chat-status chat-status--sleeping" title="Sleeping - Task scheduled">
+          <span class="chat-status__dot"></span>
+          <span class="chat-status__text">Sleeping for ${durationText}</span>
+        </span>
+      `;
+    }
+  }
 }
 
 /**
@@ -287,7 +403,7 @@ function renderAttachmentPreview(props: ChatProps) {
 
 /**
  * Render suggested action recommendations.
- * 
+ *
  * Recommendations are only shown when:
  * 1. There are recommendations to show (server returns high-confidence suggestions)
  * 2. Not currently loading chat history
@@ -297,7 +413,7 @@ function renderAttachmentPreview(props: ChatProps) {
  */
 function renderRecommendations(props: ChatProps) {
   const recs = props.recommendations ?? [];
-  
+
   // Hide recommendations during loading, sending, or streaming
   // Note: stream can be "" (empty string) when waiting for first content, which is still "streaming"
   const isStreaming = props.stream !== null;
@@ -322,7 +438,9 @@ function renderRecommendations(props: ChatProps) {
               @click=${() => {
                 props.onDraftChange(rec.prompt);
                 // Optional: auto-focus the textarea
-                const textarea = document.querySelector(".chat-compose textarea") as HTMLTextAreaElement;
+                const textarea = document.querySelector(
+                  ".chat-compose textarea",
+                ) as HTMLTextAreaElement;
                 textarea?.focus();
               }}
               title=${rec.prompt}
@@ -330,7 +448,7 @@ function renderRecommendations(props: ChatProps) {
               ${rec.icon ? html`<span class="chat-recommendation-icon">${icons[rec.icon as keyof typeof icons] || icons.zap}</span>` : nothing}
               ${rec.label}
             </button>
-          `
+          `,
         )}
       </div>
     </div>
@@ -405,16 +523,18 @@ export function renderChat(props: ChatProps) {
         props.loading
           ? html`
               <div style="padding: 20px; display: grid; gap: 20px;">
-                ${[1, 2, 3].map(() => html`
-                  <div style="display: flex; gap: 12px; align-items: flex-start;">
-                    <div class="skeleton skeleton-circle" style="width: 32px; height: 32px; flex-shrink: 0;"></div>
-                    <div style="flex: 1; display: grid; gap: 8px;">
-                      <div class="skeleton skeleton-text" style="width: 120px;"></div>
-                      <div class="skeleton skeleton-text"></div>
-                      <div class="skeleton skeleton-text"></div>
+                ${[1, 2, 3].map(
+                  () => html`
+                    <div style="display: flex; gap: 12px; align-items: flex-start">
+                      <div class="skeleton skeleton-circle" style="width: 32px; height: 32px; flex-shrink: 0"></div>
+                      <div style="flex: 1; display: grid; gap: 8px">
+                        <div class="skeleton skeleton-text" style="width: 120px"></div>
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text"></div>
+                      </div>
                     </div>
-                  </div>
-                `)}
+                  `,
+                )}
               </div>
             `
           : nothing
@@ -460,9 +580,11 @@ export function renderChat(props: ChatProps) {
               onRerunFromMessage: props.onRerunFromMessage,
               onEditMessage: props.onEditMessage,
               onCopyMessage: props.onCopyMessage,
+              onAddVisualization: props.onAddVisualization,
               showReasoning,
               assistantName: props.assistantName,
               assistantAvatar: assistantIdentity.avatar,
+              sessionKey: props.sessionKey,
             });
           }
 
@@ -472,8 +594,26 @@ export function renderChat(props: ChatProps) {
     </div>
   `;
 
+  const contextSidebarOpen = props.contextSidebarOpen ?? false;
+
   return html`
-    <section class="card chat chat-layout-wrapper chat-layout-wrapper--no-sidebar">
+    <section class="card chat chat-layout-wrapper ${contextSidebarOpen ? "chat-layout-wrapper--with-context-sidebar" : "chat-layout-wrapper--no-sidebar"}">
+      ${
+        props.onToggleContextSidebar
+          ? renderContextSidebar({
+              isOpen: contextSidebarOpen,
+              cronJobs: props.cronJobs ?? [],
+              visualizations: props.visualizations ?? [],
+              selectedVisualization: props.selectedVisualization ?? null,
+              sessionKey: props.sessionKey,
+              onToggle: props.onToggleContextSidebar,
+              onSelectVisualization: props.onSelectVisualization ?? (() => {}),
+              onOpenVisualization: props.onOpenVisualization ?? (() => {}),
+              onToggleCronJob: props.onToggleCronJob,
+              onRunCronJob: props.onRunCronJob,
+            })
+          : nothing
+      }
       <div class="chat-main-pane chat-main-pane--full">
         <div class="chat-header">
           <div class="chat-header__left">
@@ -482,6 +622,7 @@ export function renderChat(props: ChatProps) {
               props.sessionKey,
               props.onRenameSession,
             )}
+            ${renderConversationStatus(computeConversationStatus(props.sending, props.stream, props.cronJobs))}
           </div>
           <div class="chat-header__right">
             <button
@@ -503,14 +644,18 @@ export function renderChat(props: ChatProps) {
 
         ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
 
-        ${props.error ? html`
+        ${
+          props.error
+            ? html`
           <div class="callout danger" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
             <span>${props.error}</span>
             <button class="btn sm" @click=${props.onSend} ?disabled=${props.sending}>
               ${icons.zap} Retry
             </button>
           </div>
-        ` : nothing}
+        `
+            : nothing
+        }
 
         ${renderCompactionIndicator(props.compactionStatus)}
 
@@ -616,8 +761,9 @@ export function renderChat(props: ChatProps) {
           ${renderRecommendations(props)}
           ${renderAttachmentPreview(props)}
           <div class="chat-compose__row">
-            ${props.onFileUpload && visionSupported
-              ? html`
+            ${
+              props.onFileUpload && visionSupported
+                ? html`
                 <input
                   type="file"
                   id="chat-file-input"
@@ -642,8 +788,8 @@ export function renderChat(props: ChatProps) {
                 >
                   ${icons.paperclip}
                 </button>
-              ` 
-              : nothing
+              `
+                : nothing
             }
             <label class="field chat-compose__field">
               <span>Message</span>
@@ -679,8 +825,9 @@ export function renderChat(props: ChatProps) {
               ></textarea>
             </label>
             <div class="chat-compose__actions">
-              ${props.onToggleMic 
-                ? html`
+              ${
+                props.onToggleMic
+                  ? html`
                   <button
                     class="btn--icon"
                     @click=${props.onToggleMic}
@@ -689,8 +836,8 @@ export function renderChat(props: ChatProps) {
                   >
                     ${props.isListening ? icons.micOff : icons.mic}
                   </button>
-                ` 
-                : nothing
+                `
+                  : nothing
               }
               <button
                 class="btn"

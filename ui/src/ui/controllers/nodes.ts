@@ -20,6 +20,7 @@ export async function loadNodes(state: NodesState, opts?: { quiet?: boolean }) {
     state.lastError = null;
   }
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("node.list", {})) as {
       nodes?: Array<Record<string, unknown>>;
     };

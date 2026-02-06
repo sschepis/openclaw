@@ -42,7 +42,7 @@ export class SlashAutocomplete extends LitElement {
       z-index: 1000;
       pointer-events: none;
     }
-
+    
     .autocomplete {
       pointer-events: auto;
       background: var(--bg-secondary, #1e1e1e);
@@ -53,7 +53,7 @@ export class SlashAutocomplete extends LitElement {
       overflow-y: auto;
       margin-bottom: 8px;
     }
-
+    
     .autocomplete__header {
       padding: 8px 12px;
       font-size: 11px;
@@ -66,13 +66,13 @@ export class SlashAutocomplete extends LitElement {
       top: 0;
       background: var(--bg-secondary, #1e1e1e);
     }
-
+    
     .autocomplete__list {
       list-style: none;
       margin: 0;
       padding: 4px;
     }
-
+    
     .autocomplete__item {
       display: flex;
       align-items: center;
@@ -82,16 +82,16 @@ export class SlashAutocomplete extends LitElement {
       border-radius: 6px;
       transition: background 0.1s ease;
     }
-
+    
     .autocomplete__item:hover,
     .autocomplete__item--selected {
       background: var(--bg-hover, #2a2a2a);
     }
-
+    
     .autocomplete__item--selected {
       background: var(--accent-bg, rgba(0, 122, 255, 0.15));
     }
-
+    
     .autocomplete__icon {
       width: 20px;
       height: 20px;
@@ -101,12 +101,12 @@ export class SlashAutocomplete extends LitElement {
       color: var(--text-muted, #888);
       flex-shrink: 0;
     }
-
+    
     .autocomplete__icon svg {
       width: 16px;
       height: 16px;
     }
-
+    
     .autocomplete__avatar {
       width: 24px;
       height: 24px;
@@ -120,25 +120,25 @@ export class SlashAutocomplete extends LitElement {
       color: white;
       flex-shrink: 0;
     }
-
+    
     .autocomplete__avatar img {
       width: 100%;
       height: 100%;
       border-radius: 50%;
       object-fit: cover;
     }
-
+    
     .autocomplete__content {
       flex: 1;
       min-width: 0;
     }
-
+    
     .autocomplete__name {
       font-weight: 500;
       color: var(--text-primary, #fff);
       font-size: 14px;
     }
-
+    
     .autocomplete__description {
       font-size: 12px;
       color: var(--text-muted, #888);
@@ -146,26 +146,26 @@ export class SlashAutocomplete extends LitElement {
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
+    
     .autocomplete__status {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-
+    
     .autocomplete__status--active {
       background: #34c759;
     }
-
+    
     .autocomplete__status--idle {
       background: #ff9f0a;
     }
-
+    
     .autocomplete__status--offline {
       background: #666;
     }
-
+    
     .autocomplete__kbd {
       font-size: 11px;
       padding: 2px 6px;
@@ -173,7 +173,7 @@ export class SlashAutocomplete extends LitElement {
       border-radius: 4px;
       color: var(--text-muted, #888);
     }
-
+    
     .autocomplete__empty {
       padding: 16px;
       text-align: center;
@@ -197,17 +197,14 @@ export class SlashAutocomplete extends LitElement {
       // Filter agents by query
       const filtered = this.agents.filter(
         (agent) =>
-          agent.name.toLowerCase().includes(q) ||
-          agent.displayName.toLowerCase().includes(q),
+          agent.name.toLowerCase().includes(q) || agent.displayName.toLowerCase().includes(q),
       );
       return filtered.map((agent) => ({ type: "agent" as const, agent }));
     }
 
     // Filter commands by query
     const filtered = this.commands.filter(
-      (cmd) =>
-        cmd.name.toLowerCase().includes(q) ||
-        cmd.description.toLowerCase().includes(q),
+      (cmd) => cmd.name.toLowerCase().includes(q) || cmd.description.toLowerCase().includes(q),
     );
     return filtered.map((command) => ({ type: "command" as const, command }));
   }
@@ -235,8 +232,7 @@ export class SlashAutocomplete extends LitElement {
       case "ArrowUp":
         e.preventDefault();
         this.selectedIndex =
-          (this.selectedIndex - 1 + this.suggestions.length) %
-          this.suggestions.length;
+          (this.selectedIndex - 1 + this.suggestions.length) % this.suggestions.length;
         return true;
 
       case "Tab":
@@ -304,9 +300,7 @@ export class SlashAutocomplete extends LitElement {
       return html`
         <div class="autocomplete">
           <div class="autocomplete__empty">
-            ${this.mode === "mention"
-              ? "No agents found"
-              : "No commands found"}
+            ${this.mode === "mention" ? "No agents found" : "No commands found"}
           </div>
         </div>
       `;
@@ -325,9 +319,7 @@ export class SlashAutocomplete extends LitElement {
               const agent = suggestion.agent;
               return html`
                 <li
-                  class="autocomplete__item ${isSelected
-                    ? "autocomplete__item--selected"
-                    : ""}"
+                  class="autocomplete__item ${isSelected ? "autocomplete__item--selected" : ""}"
                   role="option"
                   aria-selected=${isSelected}
                   @click=${() => this.handleItemClick(suggestion)}
@@ -342,11 +334,13 @@ export class SlashAutocomplete extends LitElement {
                       ${agent.displayName}
                     </div>
                   </div>
-                  ${agent.status
-                    ? html`<div
+                  ${
+                    agent.status
+                      ? html`<div
                         class="autocomplete__status autocomplete__status--${agent.status}"
                       ></div>`
-                    : nothing}
+                      : nothing
+                  }
                 </li>
               `;
             }
@@ -354,9 +348,7 @@ export class SlashAutocomplete extends LitElement {
             const cmd = suggestion.command;
             return html`
               <li
-                class="autocomplete__item ${isSelected
-                  ? "autocomplete__item--selected"
-                  : ""}"
+                class="autocomplete__item ${isSelected ? "autocomplete__item--selected" : ""}"
                 role="option"
                 aria-selected=${isSelected}
                 @click=${() => this.handleItemClick(suggestion)}

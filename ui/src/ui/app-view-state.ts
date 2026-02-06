@@ -1,4 +1,5 @@
 import type { EventLogEntry } from "./app-events";
+import type { ThinkingState } from "./components/thinking-panel";
 import type { DevicePairingList } from "./controllers/devices";
 import type { ExecApprovalRequest } from "./controllers/exec-approval";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals";
@@ -27,9 +28,13 @@ import type {
   StatusSummary,
 } from "./types";
 import type { ActionMessage, TaskRecommendation } from "./types/chat-types";
-import type { ChatAttachment, ChatQueueItem, CronFormState, SessionDeleteConfirmState } from "./ui-types";
+import type {
+  ChatAttachment,
+  ChatQueueItem,
+  CronFormState,
+  SessionDeleteConfirmState,
+} from "./ui-types";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
-import type { ThinkingState } from "./components/thinking-panel";
 
 export type AppViewState = {
   settings: UiSettings;
@@ -172,6 +177,8 @@ export type AppViewState = {
   skillEdits: Record<string, string>;
   skillMessages: Record<string, SkillMessage>;
   skillsBusyKey: string | null;
+  skillsExpandedGroups: Set<string>;
+  skillsExpandedSkill: string | null;
   debugLoading: boolean;
   debugStatus: StatusSummary | null;
   debugHealth: HealthSnapshot | null;

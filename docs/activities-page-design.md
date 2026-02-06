@@ -13,6 +13,7 @@ The `/activities` page provides a dashboard view of active agent sessions, treat
 ### Sessions as Processes
 
 Each agent session represents a running "process" with:
+
 - **Current State**: Extracted from conversation history via AI analysis
 - **Available Actions**: Context-appropriate operations that translate to chat prompts
 - **Visualization**: Task-specific UI components showing progress, status, or data
@@ -20,6 +21,7 @@ Each agent session represents a running "process" with:
 ### AI-Powered State Extraction
 
 A dedicated AI process analyzes session transcripts to extract:
+
 1. **State Values**: Key metrics, progress indicators, and status information
 2. **Relevant Actions**: Context-appropriate commands the user can invoke
 3. **Visualization Type**: The most suitable UI representation for the current task
@@ -37,20 +39,20 @@ flowchart TB
         Transcripts[Session Transcripts]
         ChatSend[chat.send RPC]
     end
-    
+
     subgraph ActivitiesBackend
         ActivitiesRPC[activities.* RPC handlers]
         StateExtractor[Activity State Extractor]
         ActionRouter[Action Router]
     end
-    
+
     subgraph UI
         ActivitiesPage[/activities Page]
         ActivityPanel[Activity Panel Component]
         ActionButtons[Action Buttons]
         Visualization[Dynamic Visualization]
     end
-    
+
     SessionStore --> ActivitiesRPC
     Transcripts --> StateExtractor
     StateExtractor --> ActivitiesRPC
@@ -73,23 +75,23 @@ flowchart TB
 interface ActivityState {
   sessionKey: string;
   sessionId: string;
-  
+
   // Core metadata
   label: string;
   displayName: string;
   updatedAt: number;
   isActive: boolean;
-  
+
   // AI-extracted state
   taskType: ActivityTaskType;
-  phase: string;                    // e.g., "researching", "coding", "reviewing"
-  progress: number | null;          // 0-100 if determinable
-  summary: string;                  // Brief description of current state
+  phase: string; // e.g., "researching", "coding", "reviewing"
+  progress: number | null; // 0-100 if determinable
+  summary: string; // Brief description of current state
   stateValues: Record<string, StateValue>;
-  
+
   // Available actions
   actions: ActivityAction[];
-  
+
   // Visualization hints
   visualization: VisualizationType;
   visualizationData: Record<string, unknown>;
@@ -109,7 +111,7 @@ interface ActivityAction {
   description: string;
   icon?: string;
   variant: "primary" | "secondary" | "danger";
-  promptTemplate: string;          // Template to inject into chat
+  promptTemplate: string; // Template to inject into chat
   confirmRequired?: boolean;
   parameters?: ActionParameter[];
 }
@@ -157,7 +159,7 @@ Lists all active sessions with their extracted activity state.
 ```typescript
 // Request
 interface ActivitiesListParams {
-  activeMinutes?: number;         // Filter by recent activity
+  activeMinutes?: number; // Filter by recent activity
   limit?: number;
   includeInactive?: boolean;
   agentId?: string;
@@ -178,7 +180,7 @@ Triggers AI analysis of a specific session to extract/refresh state.
 // Request
 interface ActivitiesAnalyzeParams {
   sessionKey: string;
-  forceRefresh?: boolean;         // Re-analyze even if recently done
+  forceRefresh?: boolean; // Re-analyze even if recently done
 }
 
 // Response
@@ -204,8 +206,8 @@ interface ActivitiesActionParams {
 // Response
 interface ActivitiesActionResult {
   ok: boolean;
-  runId: string;                   // Chat run ID for tracking
-  promptSent: string;              // The actual prompt injected
+  runId: string; // Chat run ID for tracking
+  promptSent: string; // The actual prompt injected
 }
 ```
 
@@ -268,9 +270,7 @@ interface ExtractionResult {
   visualizationData: Record<string, unknown>;
 }
 
-export async function extractActivityState(
-  ctx: ExtractionContext
-): Promise<ExtractionResult> {
+export async function extractActivityState(ctx: ExtractionContext): Promise<ExtractionResult> {
   // 1. Read recent messages from transcript
   // 2. Build extraction prompt
   // 3. Call AI model for structured extraction
@@ -327,7 +327,7 @@ Focus on:
 ```typescript
 interface SessionEntry {
   // ... existing fields ...
-  
+
   // Activity state cache
   activityState?: {
     extractedAt: number;
@@ -366,13 +366,13 @@ export type Tab =
   | "channels"
   | "instances"
   | "sessions"
-  | "activities"  // NEW
-  | "cron"
-  // ...
+  | "activities" // NEW
+  | "cron";
+// ...
 
 const TAB_PATHS: Record<Tab, string> = {
   // ...
-  activities: "/activities",  // NEW
+  activities: "/activities", // NEW
   // ...
 };
 
@@ -380,7 +380,7 @@ export function iconForTab(tab: Tab): IconName {
   switch (tab) {
     // ...
     case "activities":
-      return "activity";  // or "layers", "grid"
+      return "activity"; // or "layers", "grid"
     // ...
   }
 }
@@ -434,17 +434,13 @@ export function renderActivities(props: ActivitiesProps) {
           ${props.loading ? "Loading…" : "Refresh"}
         </button>
       </div>
-      
-      ${props.error
-        ? html`<div class="callout danger">${props.error}</div>`
-        : nothing}
-      
+
+      ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
+
       <div class="activities-grid">
         ${props.activities.length === 0
           ? html`<div class="muted">No active sessions.</div>`
-          : props.activities.map((activity) =>
-              renderActivityPanel(activity, props)
-            )}
+          : props.activities.map((activity) => renderActivityPanel(activity, props))}
       </div>
     </section>
   `;
@@ -452,7 +448,7 @@ export function renderActivities(props: ActivitiesProps) {
 
 function renderActivityPanel(activity: ActivityState, props: ActivitiesProps) {
   return html`
-    <div class="activity-panel ${activity.isActive ? 'activity-panel--active' : ''}">
+    <div class="activity-panel ${activity.isActive ? "activity-panel--active" : ""}">
       <div class="activity-panel__header">
         <div class="activity-panel__title">${activity.displayName}</div>
         <div class="activity-panel__meta">
@@ -460,12 +456,11 @@ function renderActivityPanel(activity: ActivityState, props: ActivitiesProps) {
           <span class="muted">Updated ${formatAgo(activity.updatedAt)}</span>
         </div>
       </div>
-      
+
       <div class="activity-panel__phase">${activity.phase}</div>
       <div class="activity-panel__summary">${activity.summary}</div>
-      
-      ${renderVisualization(activity)}
-      ${renderStateValues(activity.stateValues)}
+
+      ${renderVisualization(activity)} ${renderStateValues(activity.stateValues)}
       ${renderActions(activity, props)}
     </div>
   `;
@@ -501,39 +496,41 @@ function renderProgressBar(progress: number | null, data: Record<string, unknown
 function renderStateValues(stateValues: Record<string, StateValue>) {
   const values = Object.values(stateValues);
   if (values.length === 0) return nothing;
-  
+
   return html`
     <div class="activity-state-values">
-      ${values.map((sv) => html`
-        <div class="activity-state-value">
-          <span class="activity-state-value__label">${sv.label}</span>
-          <span class="activity-state-value__value">${sv.value}${sv.unit ?? ''}</span>
-        </div>
-      `)}
+      ${values.map(
+        (sv) => html`
+          <div class="activity-state-value">
+            <span class="activity-state-value__label">${sv.label}</span>
+            <span class="activity-state-value__value">${sv.value}${sv.unit ?? ""}</span>
+          </div>
+        `,
+      )}
     </div>
   `;
 }
 
 function renderActions(activity: ActivityState, props: ActivitiesProps) {
   if (activity.actions.length === 0) return nothing;
-  
+
   return html`
     <div class="activity-actions">
-      ${activity.actions.map((action) => html`
-        <button
-          class="btn ${action.variant === 'primary' ? 'primary' : ''} ${action.variant === 'danger' ? 'danger' : ''}"
-          title=${action.description}
-          @click=${() => props.onAction(activity.sessionKey, action.id)}
-        >
-          ${action.label}
-        </button>
-      `)}
-      <button
-        class="btn"
-        @click=${() => props.onOpenChat(activity.sessionKey)}
-      >
-        Open Chat
-      </button>
+      ${activity.actions.map(
+        (action) => html`
+          <button
+            class="btn ${action.variant === "primary" ? "primary" : ""} ${action.variant ===
+            "danger"
+              ? "danger"
+              : ""}"
+            title=${action.description}
+            @click=${() => props.onAction(activity.sessionKey, action.id)}
+          >
+            ${action.label}
+          </button>
+        `,
+      )}
+      <button class="btn" @click=${() => props.onOpenChat(activity.sessionKey)}>Open Chat</button>
     </div>
   `;
 }
@@ -557,14 +554,14 @@ export type ActivitiesState = {
 
 export async function loadActivities(
   state: ActivitiesState,
-  options?: { activeMinutes?: number; limit?: number }
+  options?: { activeMinutes?: number; limit?: number },
 ) {
   if (!state.client || !state.connected) return;
   if (state.activitiesLoading) return;
-  
+
   state.activitiesLoading = true;
   state.activitiesError = null;
-  
+
   try {
     const res = await state.client.request("activities.list", {
       activeMinutes: options?.activeMinutes ?? 60,
@@ -584,20 +581,20 @@ export async function executeAction(
   state: ActivitiesState,
   sessionKey: string,
   actionId: string,
-  parameters?: Record<string, unknown>
+  parameters?: Record<string, unknown>,
 ) {
   if (!state.client || !state.connected) return;
-  
+
   try {
     const res = await state.client.request("activities.action", {
       sessionKey,
       actionId,
       parameters,
     });
-    
+
     // Optionally refresh activities after action
     await loadActivities(state);
-    
+
     return res;
   } catch (err) {
     state.activitiesError = String(err);
@@ -725,23 +722,27 @@ Add to [`ui/src/styles/components.css`](ui/src/styles/components.css):
 When a user clicks an action button:
 
 1. **UI Triggers Action**
+
    ```typescript
-   onAction(sessionKey, actionId, parameters)
+   onAction(sessionKey, actionId, parameters);
    ```
 
 2. **RPC to Gateway**
+
    ```typescript
-   client.request("activities.action", { sessionKey, actionId, parameters })
+   client.request("activities.action", { sessionKey, actionId, parameters });
    ```
 
 3. **Gateway Resolves Prompt**
+
    ```typescript
-   const action = activity.actions.find(a => a.id === actionId);
+   const action = activity.actions.find((a) => a.id === actionId);
    const prompt = interpolateTemplate(action.promptTemplate, parameters);
    ```
 
 4. **Inject into Chat**
    Leverage existing [`chat.send`](src/gateway/server-methods/chat.ts:304) infrastructure:
+
    ```typescript
    await dispatchInboundMessage({
      ctx: {
@@ -752,7 +753,9 @@ When a user clicks an action button:
      },
      cfg,
      dispatcher,
-     replyOptions: { /* ... */ },
+     replyOptions: {
+       /* ... */
+     },
    });
    ```
 
@@ -857,7 +860,7 @@ client.on("activity:update", (payload) => {
   const { sessionKey, activity } = payload;
   // Update local state
   state.activitiesList = state.activitiesList.map((a) =>
-    a.sessionKey === sessionKey ? activity : a
+    a.sessionKey === sessionKey ? activity : a,
   );
 });
 ```
@@ -907,24 +910,24 @@ client.on("activity:update", (payload) => {
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
+| File                                                                                   | Purpose                     |
+| -------------------------------------------------------------------------------------- | --------------------------- |
 | [`src/gateway/server-methods/activities.ts`](src/gateway/server-methods/activities.ts) | RPC handlers for activities |
-| [`src/gateway/activity-state-extractor.ts`](src/gateway/activity-state-extractor.ts) | AI-powered state extraction |
-| [`ui/src/ui/views/activities.ts`](ui/src/ui/views/activities.ts) | Activities page view |
-| [`ui/src/ui/controllers/activities.ts`](ui/src/ui/controllers/activities.ts) | Activities state management |
+| [`src/gateway/activity-state-extractor.ts`](src/gateway/activity-state-extractor.ts)   | AI-powered state extraction |
+| [`ui/src/ui/views/activities.ts`](ui/src/ui/views/activities.ts)                       | Activities page view        |
+| [`ui/src/ui/controllers/activities.ts`](ui/src/ui/controllers/activities.ts)           | Activities state management |
 
 ### Modified Files
 
-| File | Changes |
-|------|---------|
-| [`ui/src/ui/navigation.ts`](ui/src/ui/navigation.ts:26) | Add "activities" tab |
-| [`ui/src/ui/app.ts`](ui/src/ui/app.ts) | Add activities state and handlers |
-| [`ui/src/ui/app-render.ts`](ui/src/ui/app-render.ts) | Render activities view |
-| [`src/gateway/server-methods.ts`](src/gateway/server-methods.ts) | Register activities handlers |
-| [`src/gateway/protocol/index.ts`](src/gateway/protocol/index.ts) | Add activities validation schemas |
-| [`ui/src/styles/components.css`](ui/src/styles/components.css) | Add activities styles |
-| [`src/config/sessions.ts`](src/config/sessions.ts) | Extend SessionEntry with activityState cache |
+| File                                                             | Changes                                      |
+| ---------------------------------------------------------------- | -------------------------------------------- |
+| [`ui/src/ui/navigation.ts`](ui/src/ui/navigation.ts:26)          | Add "activities" tab                         |
+| [`ui/src/ui/app.ts`](ui/src/ui/app.ts)                           | Add activities state and handlers            |
+| [`ui/src/ui/app-render.ts`](ui/src/ui/app-render.ts)             | Render activities view                       |
+| [`src/gateway/server-methods.ts`](src/gateway/server-methods.ts) | Register activities handlers                 |
+| [`src/gateway/protocol/index.ts`](src/gateway/protocol/index.ts) | Add activities validation schemas            |
+| [`ui/src/styles/components.css`](ui/src/styles/components.css)   | Add activities styles                        |
+| [`src/config/sessions.ts`](src/config/sessions.ts)               | Extend SessionEntry with activityState cache |
 
 ---
 

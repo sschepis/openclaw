@@ -1,6 +1,6 @@
 import type { GatewayBrowserClient } from "../gateway";
-import type { ChatAttachment } from "../ui-types";
 import type { TaskRecommendation } from "../types/chat-types";
+import type { ChatAttachment } from "../ui-types";
 import { extractText } from "../chat/message-extract";
 import { generateUUID } from "../uuid";
 
@@ -31,10 +31,11 @@ export type ChatEventPayload = {
 
 export async function fetchChatHistory(client: GatewayBrowserClient, sessionKey: string) {
   try {
-    const res = await client.request("chat.history", {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
+    const res = (await client.request("chat.history", {
       sessionKey,
       limit: 1000,
-    }) as { messages: unknown[] };
+    })) as { messages: unknown[] };
     return Array.isArray(res.messages) ? res.messages : [];
   } catch (err) {
     console.error("Failed to fetch chat history", err);
@@ -47,10 +48,11 @@ export async function fetchRecommendations(state: ChatState) {
     return;
   }
   try {
-    const res = await state.client.request("chat.recommendations", {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
+    const res = (await state.client.request("chat.recommendations", {
       sessionKey: state.sessionKey,
       limit: 5,
-    }) as { recommendations: TaskRecommendation[] };
+    })) as { recommendations: TaskRecommendation[] };
     state.chatRecommendations = Array.isArray(res.recommendations) ? res.recommendations : [];
   } catch (err) {
     console.error("Failed to fetch recommendations", err);
@@ -73,37 +75,46 @@ export async function loadChatHistory(state: ChatState, options?: { retryCount?:
   state.chatLoading = true;
   state.lastError = null;
   try {
-    const res = await state.client.request("chat.history", {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
+    const res = (await state.client.request("chat.history", {
       sessionKey: sessionKeyAtStart,
       limit: 200,
-    }) as { messages: unknown[]; thinkingLevel?: string };
+    })) as { messages: unknown[]; thinkingLevel?: string };
     // Only update state if the session key hasn't changed during the async call
     // This prevents clearing messages when the user switches sessions mid-request
     if (state.sessionKey !== sessionKeyAtStart) {
       return;
     }
     const newMessages = Array.isArray(res.messages) ? res.messages : [];
-    
+
     // If the server returns fewer messages than we have locally (due to optimistic updates),
     // it means the server hasn't persisted the new messages yet. Retry after a short delay.
     // This prevents the visual "clearing" bug where messages briefly disappear.
-    if (newMessages.length < currentMessageCount && currentMessageCount > 0 && retryCount < maxRetries) {
+    if (
+      newMessages.length < currentMessageCount &&
+      currentMessageCount > 0 &&
+      retryCount < maxRetries
+    ) {
       // Keep loading state while retrying - don't set to false here
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       return loadChatHistory(state, { retryCount: retryCount + 1 });
     }
-    
+
     // Final safeguard: if server returns fewer messages than we have locally,
     // keep local messages to prevent visual "clearing" or data loss.
     // This happens when the server is lagging behind the optimistic client state.
-    if (newMessages.length < currentMessageCount && currentMessageCount > 0 && retryCount >= maxRetries) {
+    if (
+      newMessages.length < currentMessageCount &&
+      currentMessageCount > 0 &&
+      retryCount >= maxRetries
+    ) {
       console.warn(
         "[loadChatHistory] Server returned fewer messages after retries, keeping local messages",
         { current: currentMessageCount, received: newMessages.length },
       );
       return;
     }
-    
+
     state.chatMessages = newMessages;
     state.chatThinkingLevel = res.thinkingLevel ?? null;
     // Fetch recommendations after loading history
@@ -267,7 +278,10 @@ export async function deleteFromMessage(state: ChatState, messageId: string) {
   }
 }
 
-export async function rerunFromMessage(state: ChatState, messageId: string): Promise<string | null> {
+export async function rerunFromMessage(
+  state: ChatState,
+  messageId: string,
+): Promise<string | null> {
   if (!state.client || !state.connected) {
     return null;
   }
@@ -306,7 +320,7 @@ export async function editMessage(
     return null;
   }
   const runId = rerun ? generateUUID() : null;
-  
+
   if (rerun && runId) {
     state.chatRunId = runId;
     state.chatStream = "";

@@ -69,6 +69,9 @@ export type MatrixMediaContent = MessageEventContent &
     "org.matrix.msc1767.audio"?: { duration: number };
   };
 
+// Union of text and media content types. The linter reports duplication but these are structurally
+// overlapping due to shared base types - they're semantically distinct (text vs media).
+// oxlint-disable-next-line typescript/no-duplicate-type-constituents
 export type MatrixOutboundContent = MatrixTextContent | MatrixMediaContent;
 
 export type ReactionEventContent = {

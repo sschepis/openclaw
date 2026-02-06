@@ -76,7 +76,11 @@ function renderIndent(depth: number): TemplateResult | typeof nothing {
 
   const guides: TemplateResult[] = [];
   for (let i = 0; i < depth; i++) {
-    guides.push(html`<span class="pg-row__indent-guide"></span>`);
+    guides.push(
+      html`
+        <span class="pg-row__indent-guide"></span>
+      `,
+    );
   }
 
   return html`<span class="pg-row__indent">${guides}</span>`;
@@ -85,10 +89,7 @@ function renderIndent(depth: number): TemplateResult | typeof nothing {
 /**
  * Render the property path with optional search highlighting
  */
-function renderPath(
-  def: PropertyDefinition,
-  searchMatch: SearchMatch | null
-): TemplateResult {
+function renderPath(def: PropertyDefinition, searchMatch: SearchMatch | null): TemplateResult {
   // Show the last path segment as the main label
   const lastSegment = def.path.at(-1) ?? "";
   const parentPath = def.path.slice(0, -1).join(".");
@@ -101,26 +102,28 @@ function renderPath(
         ${parts.map((part) =>
           part.highlight
             ? html`<mark class="pg-row__match">${part.text}</mark>`
-            : html`<span>${part.text}</span>`
+            : html`<span>${part.text}</span>`,
         )}
       </span>
-      ${def.description
-        ? html`<span class="pg-row__path-desc" title=${def.description}>ⓘ</span>`
-        : nothing}
+      ${
+        def.description
+          ? html`<span class="pg-row__path-desc" title=${def.description}>ⓘ</span>`
+          : nothing
+      }
     `;
   }
 
   // Normal path display with hierarchy coloring
   return html`
     <span class="pg-row__path-text">
-      ${parentPath
-        ? html`<span class="pg-row__path-parent">${parentPath}.</span>`
-        : nothing}
+      ${parentPath ? html`<span class="pg-row__path-parent">${parentPath}.</span>` : nothing}
       <span class="pg-row__path-key">${lastSegment}</span>
     </span>
-    ${def.description
-      ? html`<span class="pg-row__path-desc" title=${def.description}>ⓘ</span>`
-      : nothing}
+    ${
+      def.description
+        ? html`<span class="pg-row__path-desc" title=${def.description}>ⓘ</span>`
+        : nothing
+    }
   `;
 }
 
@@ -128,5 +131,7 @@ function renderPath(
  * Render a separator row
  */
 export function renderSeparatorRow(): TemplateResult {
-  return html`<div class="pg-row pg-row--separator"></div>`;
+  return html`
+    <div class="pg-row pg-row--separator"></div>
+  `;
 }

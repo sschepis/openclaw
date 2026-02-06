@@ -281,6 +281,17 @@ export function resolveEnvApiKey(provider: string): EnvApiKeyResult | null {
     if (envKey) {
       return { apiKey: envKey, source: "gcloud adc" };
     }
+    // Check for VERTEX_AUTH_JSON env var (can be set via secrets)
+    const vertexAuthJson = process.env.VERTEX_AUTH_JSON?.trim();
+    if (vertexAuthJson) {
+      try {
+        // Verify it looks like JSON
+        JSON.parse(vertexAuthJson);
+        return { apiKey: vertexAuthJson, source: "env: VERTEX_AUTH_JSON" };
+      } catch {
+        // Ignore invalid JSON
+      }
+    }
     // Check for google.json file in agent dir
     const agentDir = resolveOpenClawAgentDir();
     const keyPath = path.join(agentDir, "google.json");

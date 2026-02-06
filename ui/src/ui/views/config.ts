@@ -1,13 +1,11 @@
 import { html, nothing } from "lit";
 import type { ConfigUiHints } from "../types";
-import { analyzeConfigSchema, renderConfigForm, SECTION_META } from "./config-form";
-import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared";
 import {
   renderPropertyGrid,
-  createInitialExpandedPaths,
-  type PropertyGridConfig,
   type JsonSchema as PropertyGridJsonSchema,
 } from "../components/property-grid";
+import { analyzeConfigSchema, renderConfigForm, SECTION_META } from "./config-form";
+import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared";
 
 export type ConfigProps = {
   raw: string;

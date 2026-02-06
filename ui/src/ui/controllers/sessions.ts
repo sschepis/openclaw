@@ -1,8 +1,8 @@
 import type { GatewayBrowserClient } from "../gateway";
 import type { SessionsListResult } from "../types";
-import { GLOBAL_SESSION_KEY } from "../types";
-import { toNumber } from "../format";
 import type { SessionDeleteConfirmState } from "../ui-types";
+import { toNumber } from "../format";
+import { GLOBAL_SESSION_KEY } from "../types";
 
 export type SessionsState = {
   client: GatewayBrowserClient | null;
@@ -51,7 +51,8 @@ export async function loadSessions(
     }
     const res = await state.client.request("sessions.list", params);
     if (res) {
-      state.sessionsResult = res as any;
+      // oxlint-disable-next-line typescript/no-explicit-any -- gateway response type cast
+      state.sessionsResult = res as SessionsListResult;
     }
   } catch (err) {
     state.sessionsError = String(err);
@@ -166,7 +167,8 @@ export async function initiateDeleteSession(state: SessionsState, key: string) {
     });
     const childSessions: Array<{ key: string; displayName: string }> = [];
     if (res && typeof res === "object" && "sessions" in res) {
-      const sessions = (res as { sessions: Array<{ key: string; label?: string | null }> }).sessions;
+      const sessions = (res as { sessions: Array<{ key: string; label?: string | null }> })
+        .sessions;
       for (const s of sessions) {
         childSessions.push({
           key: s.key,

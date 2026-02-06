@@ -5,7 +5,15 @@ import { parseAgentSessionKey } from "../../../src/sessions/session-key-utils.js
 import { scheduleChatScroll } from "./app-scroll";
 import { setLastActiveSessionKey } from "./app-settings";
 import { resetToolStream } from "./app-tool-stream";
-import { abortChatRun, loadChatHistory, sendChatMessage, deleteMessage, deleteFromMessage, rerunFromMessage, editMessage } from "./controllers/chat";
+import {
+  abortChatRun,
+  loadChatHistory,
+  sendChatMessage,
+  deleteMessage,
+  deleteFromMessage,
+  rerunFromMessage,
+  editMessage,
+} from "./controllers/chat";
 import { loadSessions } from "./controllers/sessions";
 import { normalizeBasePath } from "./navigation";
 import { generateUUID } from "./uuid";
@@ -70,7 +78,9 @@ export async function handleDeleteMessage(host: ChatHost, messageId: string) {
   if (!host.connected) {
     return;
   }
-  if (!window.confirm("Are you sure you want to delete this message? This action cannot be undone.")) {
+  if (
+    !window.confirm("Are you sure you want to delete this message? This action cannot be undone.")
+  ) {
     return;
   }
   await deleteMessage(host as unknown as OpenClawApp, messageId);
@@ -80,7 +90,11 @@ export async function handleDeleteFromMessage(host: ChatHost, messageId: string)
   if (!host.connected) {
     return;
   }
-  if (!window.confirm("Are you sure you want to delete this message and all following messages? This action cannot be undone.")) {
+  if (
+    !window.confirm(
+      "Are you sure you want to delete this message and all following messages? This action cannot be undone.",
+    )
+  ) {
     return;
   }
   await deleteFromMessage(host as unknown as OpenClawApp, messageId);
@@ -92,7 +106,11 @@ export async function handleRerunFromMessage(host: ChatHost, messageId: string) 
   if (!host.connected) {
     return;
   }
-  if (!window.confirm("Re-run the AI from this message? This will delete all messages after this one and regenerate the response.")) {
+  if (
+    !window.confirm(
+      "Re-run the AI from this message? This will delete all messages after this one and regenerate the response.",
+    )
+  ) {
     return;
   }
   resetToolStream(host as unknown as Parameters<typeof resetToolStream>[0]);

@@ -7,18 +7,17 @@
 
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { customElement, property, state, query } from "lit/decorators.js";
-import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
-
+import { repeat } from "lit/directives/repeat.js";
 import type {
   Command,
   CommandSearchGroup,
   CommandSearchResult,
   CommandPaletteOptions,
 } from "./command-types";
-import { formatShortcut, matchesShortcut } from "./command-types";
-import { commandRegistry } from "./command-registry";
 import { icons } from "../../icons";
+import { commandRegistry } from "./command-registry";
+import { formatShortcut, matchesShortcut } from "./command-types";
 
 /**
  * Command Palette Web Component
@@ -94,7 +93,7 @@ export class CommandPalette extends LitElement {
     :host {
       display: contents;
     }
-
+    
     .command-palette__backdrop {
       position: fixed;
       inset: 0;
@@ -104,12 +103,12 @@ export class CommandPalette extends LitElement {
       transition: opacity 150ms ease-out;
       pointer-events: none;
     }
-
+    
     .command-palette__backdrop--open {
       opacity: 1;
       pointer-events: auto;
     }
-
+    
     .command-palette__container {
       position: fixed;
       top: 20%;
@@ -126,16 +125,18 @@ export class CommandPalette extends LitElement {
       flex-direction: column;
       overflow: hidden;
       opacity: 0;
-      transition: opacity 150ms ease-out, transform 150ms ease-out;
+      transition:
+        opacity 150ms ease-out,
+        transform 150ms ease-out;
       pointer-events: none;
     }
-
+    
     .command-palette__container--open {
       opacity: 1;
       transform: translateX(-50%) translateY(0);
       pointer-events: auto;
     }
-
+    
     .command-palette__header {
       display: flex;
       align-items: center;
@@ -143,17 +144,17 @@ export class CommandPalette extends LitElement {
       padding: 12px 16px;
       border-bottom: 1px solid var(--border, #333);
     }
-
+    
     .command-palette__icon {
       color: var(--muted, #888);
       flex-shrink: 0;
     }
-
+    
     .command-palette__icon svg {
       width: 18px;
       height: 18px;
     }
-
+    
     .command-palette__input {
       flex: 1;
       background: transparent;
@@ -163,11 +164,11 @@ export class CommandPalette extends LitElement {
       color: var(--text, #fff);
       font-family: inherit;
     }
-
+    
     .command-palette__input::placeholder {
       color: var(--muted, #888);
     }
-
+    
     .command-palette__shortcut {
       font-size: 12px;
       color: var(--muted, #888);
@@ -176,7 +177,7 @@ export class CommandPalette extends LitElement {
       border-radius: 4px;
       font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
     }
-
+    
     .command-palette__breadcrumbs {
       display: flex;
       align-items: center;
@@ -186,36 +187,36 @@ export class CommandPalette extends LitElement {
       font-size: 13px;
       color: var(--muted, #888);
     }
-
+    
     .command-palette__breadcrumb {
       display: flex;
       align-items: center;
       gap: 4px;
     }
-
+    
     .command-palette__breadcrumb-link {
       color: var(--accent, #0a84ff);
       cursor: pointer;
     }
-
+    
     .command-palette__breadcrumb-link:hover {
       text-decoration: underline;
     }
-
+    
     .command-palette__breadcrumb-separator {
       color: var(--muted, #888);
     }
-
+    
     .command-palette__results {
       flex: 1;
       overflow-y: auto;
       padding: 8px 0;
     }
-
+    
     .command-palette__section {
       padding: 4px 0;
     }
-
+    
     .command-palette__section-label {
       font-size: 11px;
       font-weight: 600;
@@ -224,7 +225,7 @@ export class CommandPalette extends LitElement {
       color: var(--muted, #888);
       padding: 8px 16px 4px;
     }
-
+    
     .command-palette__item {
       display: flex;
       align-items: center;
@@ -233,16 +234,16 @@ export class CommandPalette extends LitElement {
       cursor: pointer;
       transition: background 100ms ease;
     }
-
+    
     .command-palette__item:hover,
     .command-palette__item--selected {
       background: var(--bg-hover, #2a2a2a);
     }
-
+    
     .command-palette__item--selected {
       background: var(--accent-bg, rgba(10, 132, 255, 0.15));
     }
-
+    
     .command-palette__item-icon {
       flex-shrink: 0;
       width: 20px;
@@ -252,17 +253,17 @@ export class CommandPalette extends LitElement {
       justify-content: center;
       color: var(--muted, #888);
     }
-
+    
     .command-palette__item-icon svg {
       width: 16px;
       height: 16px;
     }
-
+    
     .command-palette__item-content {
       flex: 1;
       min-width: 0;
     }
-
+    
     .command-palette__item-name {
       font-size: 14px;
       color: var(--text, #fff);
@@ -270,14 +271,14 @@ export class CommandPalette extends LitElement {
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
+    
     .command-palette__item-name mark {
       background: var(--accent, #0a84ff);
       color: inherit;
       border-radius: 2px;
       padding: 0 1px;
     }
-
+    
     .command-palette__item-description {
       font-size: 12px;
       color: var(--muted, #888);
@@ -286,31 +287,31 @@ export class CommandPalette extends LitElement {
       text-overflow: ellipsis;
       margin-top: 2px;
     }
-
+    
     .command-palette__item-shortcut {
       flex-shrink: 0;
       font-size: 12px;
       color: var(--muted, #888);
       font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
     }
-
+    
     .command-palette__item-arrow {
       flex-shrink: 0;
       color: var(--muted, #888);
     }
-
+    
     .command-palette__item-arrow svg {
       width: 14px;
       height: 14px;
     }
-
+    
     .command-palette__empty {
       padding: 24px 16px;
       text-align: center;
       color: var(--muted, #888);
       font-size: 14px;
     }
-
+    
     .command-palette__loading {
       display: flex;
       align-items: center;
@@ -320,7 +321,7 @@ export class CommandPalette extends LitElement {
       color: var(--muted, #888);
       font-size: 14px;
     }
-
+    
     .command-palette__footer {
       display: flex;
       align-items: center;
@@ -330,19 +331,19 @@ export class CommandPalette extends LitElement {
       font-size: 12px;
       color: var(--muted, #888);
     }
-
+    
     .command-palette__footer-hints {
       display: flex;
       align-items: center;
       gap: 12px;
     }
-
+    
     .command-palette__footer-hint {
       display: flex;
       align-items: center;
       gap: 4px;
     }
-
+    
     .command-palette__footer-hint kbd {
       background: var(--bg-secondary, #2a2a2a);
       padding: 2px 5px;
@@ -350,13 +351,13 @@ export class CommandPalette extends LitElement {
       font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
       font-size: 11px;
     }
-
+    
     @keyframes spin {
       to {
         transform: rotate(360deg);
       }
     }
-
+    
     .command-palette__spinner {
       animation: spin 1s linear infinite;
     }
@@ -508,14 +509,13 @@ export class CommandPalette extends LitElement {
       case "ArrowUp":
         e.preventDefault();
         this.selectedIndex =
-          (this.selectedIndex - 1 + Math.max(1, totalResults)) %
-          Math.max(1, totalResults);
+          (this.selectedIndex - 1 + Math.max(1, totalResults)) % Math.max(1, totalResults);
         this.scrollSelectedIntoView();
         break;
 
       case "Enter":
         e.preventDefault();
-        this.executeSelected();
+        void this.executeSelected();
         break;
 
       case "Backspace":
@@ -530,7 +530,7 @@ export class CommandPalette extends LitElement {
         // Tab into children if available
         const selected = this.getResultAtIndex(this.selectedIndex);
         if (selected?.command.children || selected?.command.hasChildren) {
-          this.navigateToChildren(selected.command);
+          void this.navigateToChildren(selected.command);
         }
         break;
     }
@@ -538,9 +538,7 @@ export class CommandPalette extends LitElement {
 
   private scrollSelectedIntoView(): void {
     requestAnimationFrame(() => {
-      const selectedEl = this.resultsEl?.querySelector(
-        ".command-palette__item--selected",
-      );
+      const selectedEl = this.resultsEl?.querySelector(".command-palette__item--selected");
       if (selectedEl) {
         selectedEl.scrollIntoView({ block: "nearest" });
       }
@@ -549,7 +547,9 @@ export class CommandPalette extends LitElement {
 
   private async executeSelected(): Promise<void> {
     const result = this.getResultAtIndex(this.selectedIndex);
-    if (!result) return;
+    if (!result) {
+      return;
+    }
 
     const { command } = result;
 
@@ -577,7 +577,9 @@ export class CommandPalette extends LitElement {
   }
 
   private async navigateToChildren(command: Command): Promise<void> {
-    if (!command.children) return;
+    if (!command.children) {
+      return;
+    }
 
     this.isLoading = true;
     this.breadcrumbs = [...this.breadcrumbs, command];
@@ -599,7 +601,9 @@ export class CommandPalette extends LitElement {
   }
 
   private popBreadcrumb(): void {
-    if (this.breadcrumbs.length === 0) return;
+    if (this.breadcrumbs.length === 0) {
+      return;
+    }
 
     this.breadcrumbs = this.breadcrumbs.slice(0, -1);
 
@@ -618,7 +622,7 @@ export class CommandPalette extends LitElement {
 
   private handleItemClick(index: number): void {
     this.selectedIndex = index;
-    this.executeSelected();
+    void this.executeSelected();
   }
 
   private handleItemMouseEnter(index: number): void {
@@ -628,10 +632,7 @@ export class CommandPalette extends LitElement {
   /**
    * Highlight matched characters in text.
    */
-  private highlightMatches(
-    text: string,
-    matches: number[] | undefined,
-  ): unknown {
+  private highlightMatches(text: string, matches: number[] | undefined): unknown {
     if (!matches || matches.length === 0) {
       return text;
     }
@@ -696,9 +697,7 @@ export class CommandPalette extends LitElement {
     if (totalResults === 0) {
       return html`
         <div class="command-palette__empty">
-          ${this.query
-            ? `No commands found for "${this.query}"`
-            : "No commands available"}
+          ${this.query ? `No commands found for "${this.query}"` : "No commands available"}
         </div>
       `;
     }
@@ -730,43 +729,47 @@ export class CommandPalette extends LitElement {
                     @click=${() => this.handleItemClick(index)}
                     @mouseenter=${() => this.handleItemMouseEnter(index)}
                   >
-                    ${result.command.icon
-                      ? html`
+                    ${
+                      result.command.icon
+                        ? html`
                           <span class="command-palette__item-icon">
-                            ${icons[result.command.icon as keyof typeof icons] ??
-                            icons.zap}
+                            ${icons[result.command.icon as keyof typeof icons] ?? icons.zap}
                           </span>
                         `
-                      : nothing}
+                        : nothing
+                    }
                     <div class="command-palette__item-content">
                       <div class="command-palette__item-name">
-                        ${this.highlightMatches(
-                          result.command.name,
-                          result.nameMatches,
-                        )}
+                        ${this.highlightMatches(result.command.name, result.nameMatches)}
                       </div>
-                      ${result.command.description
-                        ? html`
+                      ${
+                        result.command.description
+                          ? html`
                             <div class="command-palette__item-description">
                               ${result.command.description}
                             </div>
                           `
-                        : nothing}
+                          : nothing
+                      }
                     </div>
-                    ${result.command.shortcut
-                      ? html`
+                    ${
+                      result.command.shortcut
+                        ? html`
                           <span class="command-palette__item-shortcut">
                             ${formatShortcut(result.command.shortcut)}
                           </span>
                         `
-                      : nothing}
-                    ${result.command.children || result.command.hasChildren
-                      ? html`
+                        : nothing
+                    }
+                    ${
+                      result.command.children || result.command.hasChildren
+                        ? html`
                           <span class="command-palette__item-arrow">
                             ${icons.chevronRight}
                           </span>
                         `
-                      : nothing}
+                        : nothing
+                    }
                   </div>
                 `;
               },
@@ -778,8 +781,7 @@ export class CommandPalette extends LitElement {
   }
 
   render() {
-    const placeholder =
-      this.options.placeholder ?? "Search commands...";
+    const placeholder = this.options.placeholder ?? "Search commands...";
 
     return html`
       <div
@@ -787,7 +789,7 @@ export class CommandPalette extends LitElement {
           "command-palette__backdrop": true,
           "command-palette__backdrop--open": this.open,
         })}
-        @click=${this.handleBackdropClick}
+        @click=${(e: MouseEvent) => this.handleBackdropClick(e)}
       >
         <div
           class=${classMap({
@@ -801,8 +803,8 @@ export class CommandPalette extends LitElement {
               class="command-palette__input"
               type="text"
               .value=${this.query}
-              @input=${this.handleInput}
-              @keydown=${this.handleKeydown}
+              @input=${(e: InputEvent) => this.handleInput(e)}
+              @keydown=${(e: KeyboardEvent) => this.handleKeydown(e)}
               placeholder=${placeholder}
               autocomplete="off"
               autocorrect="off"

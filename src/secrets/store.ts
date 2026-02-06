@@ -27,13 +27,15 @@ export class SecretsStore {
     try {
       const keyData = await fs.readFile(MASTER_KEY_PATH, "utf-8");
       return importKey(keyData.trim());
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Only generate a new key if the file doesn't exist.
       // Any other error (permissions, corrupt key, I/O) should propagate
       // to avoid silently orphaning existing secrets.
-      if (err.code !== "ENOENT") {
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code !== "ENOENT") {
         throw new Error(
-          `Failed to load secrets key from ${MASTER_KEY_PATH}: ${err.message ?? err}`,
+          `Failed to load secrets key from ${MASTER_KEY_PATH}: ${nodeErr.message ?? err}`,
+          { cause: err },
         );
       }
       // Generate new key only when file is missing
@@ -45,9 +47,15 @@ export class SecretsStore {
   }
 
   private async readVault(): Promise<SecretsMap> {
-    if (this.memoryCache) return this.memoryCache;
-    if (!this.key) await this.init();
-    if (!this.key) throw new Error("Failed to initialize secrets key");
+    if (this.memoryCache) {
+      return this.memoryCache;
+    }
+    if (!this.key) {
+      await this.init();
+    }
+    if (!this.key) {
+      throw new Error("Failed to initialize secrets key");
+    }
 
     try {
       const content = await fs.readFile(VAULT_PATH, "utf-8");
@@ -55,8 +63,9 @@ export class SecretsStore {
       const json = await decrypt(vault.data, vault.iv, this.key);
       this.memoryCache = JSON.parse(json);
       return this.memoryCache!;
-    } catch (err: any) {
-      if (err.code === "ENOENT") {
+    } catch (err: unknown) {
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code === "ENOENT") {
         return {};
       }
       throw err;
@@ -64,8 +73,12 @@ export class SecretsStore {
   }
 
   private async writeVault(secrets: SecretsMap): Promise<void> {
-    if (!this.key) await this.init();
-    if (!this.key) throw new Error("Failed to initialize secrets key");
+    if (!this.key) {
+      await this.init();
+    }
+    if (!this.key) {
+      throw new Error("Failed to initialize secrets key");
+    }
 
     this.memoryCache = secrets;
     const json = JSON.stringify(secrets);

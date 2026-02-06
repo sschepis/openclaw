@@ -1,7 +1,8 @@
-import { callDebugMethod } from "./controllers/debug";
 import type { OpenClawApp } from "./app";
 import type { LogLevel } from "./types";
+import { callDebugMethod } from "./controllers/debug";
 
+/* oxlint-disable no-explicit-any -- App type augmentation uses any for dynamic properties */
 type App = OpenClawApp & {
   settingsOpen: boolean;
   sidebarOpen: boolean;
@@ -25,6 +26,7 @@ type App = OpenClawApp & {
   pendingGatewayUrl: string | null;
   connect: () => void;
 };
+/* oxlint-enable no-explicit-any */
 
 export function handleToggleSettings(app: App) {
   app.settingsOpen = !app.settingsOpen;
@@ -33,7 +35,10 @@ export function handleToggleSettings(app: App) {
   }
 }
 
-export async function handleExecApprovalDecision(app: App, decision: "allow-once" | "allow-always" | "deny") {
+export async function handleExecApprovalDecision(
+  app: App,
+  decision: "allow-once" | "allow-always" | "deny",
+) {
   const active = app.execApprovalQueue[0];
   if (!active || !app.client || app.execApprovalBusy) {
     return;
@@ -107,7 +112,7 @@ export function handleNavResize(app: App, width: number) {
   app.applySettings({ ...app.settings, navWidth: newWidth });
 }
 
-export function handleChatSelectQueueItem(app: App, id: string) {
+export function handleChatSelectQueueItem(_app: App, _id: string) {
   // No-op for now
 }
 
@@ -137,5 +142,6 @@ export function handleLogsAutoFollowToggle(app: App, next: boolean) {
 export async function handleCallDebugMethod(app: App, method: string, params: string) {
   app.debugCallMethod = method;
   app.debugCallParams = params;
+  // oxlint-disable-next-line typescript-eslint/no-explicit-any -- callDebugMethod expects a broader App type
   await callDebugMethod(app as any);
 }

@@ -1,5 +1,5 @@
-import { createSpeechRecognition, speakText, type SpeechRecognition } from "./speech";
 import type { OpenClawApp } from "./app";
+import { createSpeechRecognition, speakText, type SpeechRecognition } from "./speech";
 
 type App = OpenClawApp & {
   isListening: boolean;
@@ -30,13 +30,13 @@ export function handleToggleMic(app: App) {
 
     app.recognition.onresult = (event) => {
       let finalTranscript = "";
-      let interimTranscript = "";
+      let _interimTranscript = "";
 
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
         } else {
-          interimTranscript += event.results[i][0].transcript;
+          _interimTranscript += event.results[i][0].transcript;
         }
       }
 
@@ -46,6 +46,7 @@ export function handleToggleMic(app: App) {
       }
     };
 
+    // oxlint-disable-next-line unicorn/prefer-add-event-listener -- SpeechRecognition uses typed callback signature
     app.recognition.onerror = (event) => {
       console.error("Speech recognition error", event.error);
       app.isListening = false;
@@ -66,20 +67,20 @@ export function handleSpeak(text: string) {
 
 export async function handleFileUpload(app: App, file: File) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.addEventListener("load", (e) => {
     const text = e.target?.result as string;
     if (text) {
       const header = `\n\n--- ${file.name} ---\n`;
       const current = app.chatMessage ? app.chatMessage + header : header;
       app.chatMessage = current + text + "\n---\n";
     }
-  };
+  });
   reader.readAsText(file);
 }
 
 export function handleGlobalKeydown(app: App, e: KeyboardEvent) {
   const isCmd = e.metaKey || e.ctrlKey;
-  
+
   // Cmd+K: Toggle Command Palette
   if (isCmd && e.key === "k") {
     e.preventDefault();

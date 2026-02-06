@@ -66,6 +66,7 @@ const createStubOutbound = (
   sendText: async ({ deps, to, text }) => {
     const send = pickSendFn(id, deps);
     if (send) {
+      // oxlint-disable-next-line typescript/no-explicit-any -- test stub
       const result = await send(to, text, {} as any);
       return { channel: id, ...result };
     }
@@ -74,6 +75,7 @@ const createStubOutbound = (
   sendMedia: async ({ deps, to, text, mediaUrl }) => {
     const send = pickSendFn(id, deps);
     if (send) {
+      // oxlint-disable-next-line typescript/no-explicit-any -- test stub
       const result = await send(to, text, { mediaUrl } as any);
       return { channel: id, ...result };
     }
@@ -121,13 +123,15 @@ const createStubPlugin = (params: {
         const match = accounts?.[accountId];
         return (match && typeof match === "object") || typeof match === "string" ? match : entry;
       },
-      isConfigured: async (_account: any, cfg: OpenClawConfig) => {
+      // oxlint-disable-next-line typescript/no-explicit-any -- test stub
+      isConfigured: async (_account: unknown, cfg: OpenClawConfig) => {
         const channels = cfg.channels as Record<string, unknown> | undefined;
         return Boolean(channels?.[params.id]);
       },
     },
     outbound: createStubOutbound(params.id, params.deliveryMode),
-  }) as any;
+    // oxlint-disable-next-line typescript/no-explicit-any -- test stub partial implementation
+  }) as ChannelPlugin;
 
 const createDefaultRegistry = () =>
   createTestRegistry([

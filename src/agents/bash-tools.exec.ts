@@ -836,7 +836,8 @@ async function resolveEnvSecrets(env: Record<string, string>): Promise<Record<st
         newValue = newValue.replaceAll(`{{SECRET:${secretKey}}}`, secretValue);
       } catch (err) {
         throw new Error(
-          `Failed to resolve secret '${secretKey}' for environment variable '${key}': ${err}`,
+          `Failed to resolve secret '${secretKey}' for environment variable '${key}': ${err instanceof Error ? err.message : String(err)}`,
+          { cause: err },
         );
       }
     }

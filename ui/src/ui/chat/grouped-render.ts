@@ -1,10 +1,12 @@
 import { html, nothing } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { AssistantIdentity } from "../assistant-identity";
-import { icons } from "../icons";
-import type { ActionMessage, MessageGroup } from "../types/chat-types";
+import type { CanvasVisualization } from "../components/canvas-visualization";
 import type { ThinkingState } from "../components/thinking-panel";
+import type { ActionMessage, MessageGroup } from "../types/chat-types";
+import { icons } from "../icons";
 import { toSanitizedMarkdownHtml } from "../markdown";
+import { renderCanvasBlocksFromContent, hasCanvasContent } from "./canvas-render";
 import { renderCopyAsMarkdownButton } from "./copy-as-markdown";
 import {
   extractTextCached,
@@ -61,11 +63,11 @@ export function renderReadingIndicatorGroup(
   thinkingState?: ThinkingState | null,
 ) {
   // Extract status text from thinking state
-  const activeAction = thinkingState?.actions.find(a => a.status === "running");
+  const activeAction = thinkingState?.actions.find((a) => a.status === "running");
   const statusText = activeAction?.label
     ? `${activeAction.label}...`
     : thinkingState?.status || "Thinking...";
-  
+
   return html`
     <div class="chat-group assistant">
       ${renderAvatar("assistant", assistant)}
@@ -95,7 +97,7 @@ export function renderStreamingGroup(
   const name = assistant?.name ?? "Assistant";
 
   // Extract status text from thinking state
-  const activeAction = thinkingState?.actions.find(a => a.status === "running");
+  const activeAction = thinkingState?.actions.find((a) => a.status === "running");
   const statusText = activeAction?.label
     ? `${activeAction.label}...`
     : thinkingState?.status || null;
@@ -114,8 +116,9 @@ export function renderStreamingGroup(
           { isStreaming: true, showReasoning: false },
           onOpenSidebar,
         )}
-        ${statusText
-          ? html`
+        ${
+          statusText
+            ? html`
             <div class="chat-streaming-status">
               <span class="chat-streaming-status__dots">
                 <span></span><span></span><span></span>
@@ -123,7 +126,8 @@ export function renderStreamingGroup(
               <span class="chat-streaming-status__text">${statusText}</span>
             </div>
           `
-          : nothing}
+            : nothing
+        }
         <div class="chat-group-footer">
           <span class="chat-sender-name">${name}</span>
           <span class="chat-group-timestamp">${timestamp}</span>
@@ -143,9 +147,11 @@ export function renderMessageGroup(
     onEditMessage?: (id: string, currentContent: string) => void;
     onCopyMessage?: (text: string) => void;
     onSpeak?: (text: string) => void;
+    onAddVisualization?: (viz: CanvasVisualization, sessionKey: string) => void;
     showReasoning: boolean;
     assistantName?: string;
     assistantAvatar?: string | null;
+    sessionKey?: string;
   },
 ) {
   const normalizedRole = normalizeRoleForGrouping(group.role);
@@ -178,6 +184,7 @@ export function renderMessageGroup(
               isStreaming: group.isStreaming && index === group.messages.length - 1,
               showReasoning: opts.showReasoning,
               role: group.role,
+              sessionKey: opts.sessionKey,
             },
             opts.onOpenSidebar,
             opts.onDeleteMessage,
@@ -186,6 +193,7 @@ export function renderMessageGroup(
             opts.onEditMessage,
             opts.onCopyMessage,
             opts.onSpeak,
+            opts.onAddVisualization,
           ),
         )}
         <div class="chat-group-footer">
@@ -224,9 +232,42 @@ function renderAvatar(role: string, assistant?: Pick<AssistantIdentity, "name" |
         class="chat-avatar ${className}"
         src="${assistantAvatar}"
         alt="${assistantName}"
+        @error=${(e: Event) => {
+          // On load error, replace with OpenClaw icon
+          const img = e.target as HTMLImageElement;
+          const parent = img.parentElement;
+          if (parent) {
+            const fallback = document.createElement("div");
+            fallback.className = `chat-avatar ${className} chat-avatar--icon`;
+            // Use the inline SVG from icons
+            fallback.innerHTML = `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="lobster-gradient-avatar" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff4d4d"/>
+                  <stop offset="100%" stop-color="#991b1b"/>
+                </linearGradient>
+              </defs>
+              <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#lobster-gradient-avatar)"/>
+              <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#lobster-gradient-avatar)"/>
+              <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#lobster-gradient-avatar)"/>
+              <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
+              <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="45" cy="35" r="6" fill="#050810"/>
+              <circle cx="75" cy="35" r="6" fill="#050810"/>
+              <circle cx="46" cy="34" r="2.5" fill="#00e5cc"/>
+              <circle cx="76" cy="34" r="2.5" fill="#00e5cc"/>
+            </svg>`;
+            parent.replaceChild(fallback, img);
+          }
+        }}
       />`;
     }
     return html`<div class="chat-avatar ${className}">${assistantAvatar}</div>`;
+  }
+
+  // For assistant without avatar, use the OpenClaw icon
+  if (normalized === "assistant") {
+    return html`<div class="chat-avatar ${className} chat-avatar--icon">${icons.openclaw}</div>`;
   }
 
   return html`<div class="chat-avatar ${className}">${initial}</div>`;
@@ -262,7 +303,7 @@ function renderMessageImages(images: ImageBlock[]) {
 function renderGroupedMessage(
   message: unknown,
   key: string,
-  opts: { isStreaming: boolean; showReasoning: boolean; role?: string },
+  opts: { isStreaming: boolean; showReasoning: boolean; role?: string; sessionKey?: string },
   onOpenSidebar?: (content: string) => void,
   onDeleteMessage?: (id: string) => void,
   onDeleteFromMessage?: (id: string) => void,
@@ -270,6 +311,7 @@ function renderGroupedMessage(
   onEditMessage?: (id: string, currentContent: string) => void,
   onCopyMessage?: (text: string) => void,
   onSpeak?: (text: string) => void,
+  onAddVisualization?: (viz: CanvasVisualization, sessionKey: string) => void,
 ) {
   const m = message as Record<string, unknown>;
   const role = typeof m.role === "string" ? m.role : "unknown";
@@ -295,6 +337,9 @@ function renderGroupedMessage(
   const isUserMessage = normalizeRoleForGrouping(opts.role ?? role) === "user";
   const isAssistantMessage = normalizeRoleForGrouping(opts.role ?? role) === "assistant";
 
+  // Check for canvas blocks in the message
+  const hasCanvasBlocks = markdown ? hasCanvasContent(markdown) : false;
+
   // Extract ID from key (msg:ID or similar)
   const messageId = key.startsWith("msg:") ? key.slice(4).split(":")[0] : null;
 
@@ -318,8 +363,9 @@ function renderGroupedMessage(
   return html`
     <div class="${bubbleClasses}">
       <div class="chat-actions">
-        ${hasCopyableContent && markdown
-          ? html`
+        ${
+          hasCopyableContent && markdown
+            ? html`
               <button
                 class="chat-action-btn"
                 title="Copy message"
@@ -327,28 +373,32 @@ function renderGroupedMessage(
                   if (onCopyMessage) {
                     onCopyMessage(markdown);
                   } else {
-                    navigator.clipboard.writeText(markdown);
+                    void navigator.clipboard.writeText(markdown);
                   }
                 }}
               >
                 ${icons.copy}
               </button>
             `
-          : nothing}
+            : nothing
+        }
         ${isAssistantMessage && hasCopyableContent ? renderCopyAsMarkdownButton(markdown!) : nothing}
-        ${onSpeak && markdown
-          ? html`
+        ${
+          onSpeak && markdown
+            ? html`
               <button
                 class="chat-action-btn"
                 title="Speak message"
-                @click=${() => onSpeak(markdown!)}
+                @click=${() => onSpeak(markdown)}
               >
                 ${icons.volume2}
               </button>
             `
-          : nothing}
-        ${isUserMessage && messageId && onEditMessage && markdown
-          ? html`
+            : nothing
+        }
+        ${
+          isUserMessage && messageId && onEditMessage && markdown
+            ? html`
               <button
                 class="chat-action-btn"
                 title="Edit message"
@@ -357,9 +407,11 @@ function renderGroupedMessage(
                 ${icons.pencil}
               </button>
             `
-          : nothing}
-        ${isUserMessage && messageId && onRerunFromMessage
-          ? html`
+            : nothing
+        }
+        ${
+          isUserMessage && messageId && onRerunFromMessage
+            ? html`
               <button
                 class="chat-action-btn"
                 title="Re-run from here"
@@ -368,9 +420,11 @@ function renderGroupedMessage(
                 ${icons.refreshCw}
               </button>
             `
-          : nothing}
-        ${messageId && onDeleteFromMessage
-          ? html`
+            : nothing
+        }
+        ${
+          messageId && onDeleteFromMessage
+            ? html`
               <button
                 class="chat-action-btn warning"
                 title="Delete this and all following messages"
@@ -379,9 +433,11 @@ function renderGroupedMessage(
                 ${icons.scissors}
               </button>
             `
-          : nothing}
-        ${messageId && onDeleteMessage
-          ? html`
+            : nothing
+        }
+        ${
+          messageId && onDeleteMessage
+            ? html`
               <button
                 class="chat-action-btn delete"
                 title="Delete message"
@@ -390,7 +446,8 @@ function renderGroupedMessage(
                 ${icons.trash}
               </button>
             `
-          : nothing}
+            : nothing
+        }
       </div>
       ${renderMessageImages(images)}
       ${
@@ -403,6 +460,11 @@ function renderGroupedMessage(
       ${
         markdown
           ? html`<div class="chat-text">${unsafeHTML(toSanitizedMarkdownHtml(markdown))}</div>`
+          : nothing
+      }
+      ${
+        hasCanvasBlocks && markdown
+          ? renderCanvasBlocksFromContent(markdown, key, onAddVisualization, opts.sessionKey)
           : nothing
       }
       ${toolCards.map((card) => renderToolCardSidebar(card, onOpenSidebar))}
@@ -450,11 +512,14 @@ export function renderActionMessage(action: ActionMessage) {
       <div class="chat-action-message__icon">${icon}</div>
       <div class="chat-action-message__content">
         <div class="chat-action-message__title">${action.title}</div>
-        ${action.description
-          ? html`<div class="chat-action-message__description">${action.description}</div>`
-          : nothing}
-        ${detailEntries.length > 0
-          ? html`
+        ${
+          action.description
+            ? html`<div class="chat-action-message__description">${action.description}</div>`
+            : nothing
+        }
+        ${
+          detailEntries.length > 0
+            ? html`
               <div class="chat-action-message__details">
                 ${detailEntries.map(
                   ([key, value]) => html`
@@ -466,7 +531,8 @@ export function renderActionMessage(action: ActionMessage) {
                 )}
               </div>
             `
-          : nothing}
+            : nothing
+        }
       </div>
       <div class="chat-action-message__timestamp">${timestamp}</div>
     </div>

@@ -1,5 +1,5 @@
-import { truncateText } from "./format";
 import type { ThinkingState } from "./components/thinking-panel";
+import { truncateText } from "./format";
 
 const TOOL_STREAM_LIMIT = 50;
 const TOOL_STREAM_THROTTLE_MS = 80;
@@ -236,10 +236,10 @@ function updateThinkingState(host: ToolStreamHost, payload: AgentEventPayload) {
     }
 
     const phase = data.phase as string;
-    const name = data.name as string || "tool";
-    
-    let action = state.actions.find(a => a.id === toolCallId);
-    
+    const name = (data.name as string) || "tool";
+
+    let action = state.actions.find((a) => a.id === toolCallId);
+
     if (phase === "start") {
       state.status = `Running ${name}...`;
       if (!action) {
@@ -256,21 +256,21 @@ function updateThinkingState(host: ToolStreamHost, payload: AgentEventPayload) {
       if (action) {
         action.status = phase === "error" ? "error" : "done";
         if (phase === "error") {
-           action.detail = typeof data.error === "string" ? data.error : "Failed";
+          action.detail = typeof data.error === "string" ? data.error : "Failed";
         }
       }
-      state.status = "Thinking..."; 
+      state.status = "Thinking...";
     }
   } else if (payload.stream === "assistant") {
-      // If we start streaming text, we are "Generating response"
-      if (state.active) {
-          state.status = "Generating response...";
-      }
+    // If we start streaming text, we are "Generating response"
+    if (state.active) {
+      state.status = "Generating response...";
+    }
   }
-  
+
   // Cap actions history
   if (state.actions.length > 20) {
-      state.actions = state.actions.slice(0, 20);
+    state.actions = state.actions.slice(0, 20);
   }
 }
 
@@ -289,15 +289,15 @@ export function handleAgentEvent(host: ToolStreamHost, payload?: AgentEventPaylo
   // Valid event logic
   const isValidSession = sessionKey && sessionKey === host.sessionKey;
   const isValidRun = !sessionKey && host.chatRunId && payload.runId === host.chatRunId;
-  
+
   if (isValidSession || isValidRun) {
-      updateThinkingState(host, payload);
+    updateThinkingState(host, payload);
   }
 
   if (payload.stream !== "tool") {
     return;
   }
-  
+
   if (sessionKey && sessionKey !== host.sessionKey) {
     return;
   }

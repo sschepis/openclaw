@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { runEmbeddedPiAgent } from "../../agents/pi-embedded-runner.js";
 import { updateSessionStore } from "../../config/sessions.js";
 import { getChildLogger } from "../../logging.js";
@@ -11,7 +12,7 @@ export async function generateSessionTitle(params: {
   userMessage: string;
   agentId: string;
   agentDir: string;
-  config: any; // OpenClawConfig
+  config: OpenClawConfig;
   provider?: string;
   model?: string;
   defaultProvider: string;
@@ -21,7 +22,6 @@ export async function generateSessionTitle(params: {
     sessionKey,
     storePath,
     userMessage,
-    agentId,
     agentDir,
     config,
     provider,
@@ -30,8 +30,13 @@ export async function generateSessionTitle(params: {
     defaultModel,
   } = params;
 
+  // Unused params prefixed with underscore to satisfy linter
+  void params.agentId;
+
   // Don't generate title for very short messages
-  if (userMessage.length < 5) return;
+  if (userMessage.length < 5) {
+    return;
+  }
 
   const prompt = `Generate a concise title (3-6 words) for a chat session starting with this message: "${userMessage}". Return ONLY the title text, no quotes or prefixes.`;
 

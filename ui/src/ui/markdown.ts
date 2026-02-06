@@ -14,12 +14,12 @@ marked.setOptions({
 // Custom renderer for CSV
 const renderer = {
   code(code: string, lang: string | undefined) {
-    if (lang && lang.toLowerCase() === 'csv') {
+    if (lang && lang.toLowerCase() === "csv") {
       return renderCsvTable(code);
     }
     // Fallback to default behavior (return false to let marked handle it)
     return false;
-  }
+  },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,13 +27,13 @@ marked.use({ renderer } as any);
 /* oxlint-enable typescript-eslint/no-explicit-any */
 
 function renderCsvTable(csv: string): string {
-  const rows = csv.trim().split('\n');
+  const rows = csv.trim().split("\n");
   if (rows.length === 0) {
-    return '';
+    return "";
   }
 
-  const parseRow = (row: string) => row.split(',').map(c => c.trim());
-  
+  const parseRow = (row: string) => row.split(",").map((c) => c.trim());
+
   const header = parseRow(rows[0]);
   const body = rows.slice(1).map(parseRow);
 
@@ -41,10 +41,10 @@ function renderCsvTable(csv: string): string {
     <div class="table-wrapper" style="overflow-x: auto; margin: 1em 0;">
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <thead>
-          <tr>${header.map(cell => `<th style="border: 1px solid var(--border); padding: 6px 10px; background: var(--secondary); font-weight: 600; text-align: left;">${escapeHtml(cell)}</th>`).join('')}</tr>
+          <tr>${header.map((cell) => `<th style="border: 1px solid var(--border); padding: 6px 10px; background: var(--secondary); font-weight: 600; text-align: left;">${escapeHtml(cell)}</th>`).join("")}</tr>
         </thead>
         <tbody>
-          ${body.map(row => `<tr>${row.map(cell => `<td style="border: 1px solid var(--border); padding: 6px 10px;">${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}
+          ${body.map((row) => `<tr>${row.map((cell) => `<td style="border: 1px solid var(--border); padding: 6px 10px;">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}
         </tbody>
       </table>
     </div>
@@ -54,8 +54,9 @@ function renderCsvTable(csv: string): string {
 function highlightCode(code: string, lang: string): string {
   // Simple regex-based highlighter for common languages
   // This is a lightweight fallback since we can't easily add heavy highlighting libraries
-  
-  const keywords = /\b(const|let|var|function|return|if|else|for|while|class|import|export|from|async|await|try|catch|type|interface)\b/g;
+
+  const keywords =
+    /\b(const|let|var|function|return|if|else|for|while|class|import|export|from|async|await|try|catch|type|interface)\b/g;
   const literals = /\b(true|false|null|undefined|NaN)\b/g;
   const strings = /(".*?"|'.*?'|`.*?`)/g;
   const comments = /(\/\/.*|\/\*[\s\S]*?\*\/)/g;
@@ -65,12 +66,9 @@ function highlightCode(code: string, lang: string): string {
     return code;
   }
 
-  let highlighted = code
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  let highlighted = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  if (['js', 'ts', 'javascript', 'typescript', 'json'].includes(lang.toLowerCase())) {
+  if (["js", "ts", "javascript", "typescript", "json"].includes(lang.toLowerCase())) {
     highlighted = highlighted
       .replace(strings, '<span style="color: #a5d6ff;">$1</span>')
       .replace(comments, '<span style="color: #8b949e;">$1</span>')

@@ -38,6 +38,7 @@ export async function startWhatsAppLogin(state: ChannelsState, force: boolean) {
   }
   state.whatsappBusy = true;
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("web.login.start", {
       force,
       timeoutMs: 30000,
@@ -60,6 +61,7 @@ export async function waitWhatsAppLogin(state: ChannelsState) {
   }
   state.whatsappBusy = true;
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("web.login.wait", {
       timeoutMs: 120000,
     })) as WhatsAppLoginResponse;

@@ -1,8 +1,8 @@
 import { html, nothing } from "lit";
 import type { GatewaySessionRow, SessionsListResult } from "../types";
-import { GLOBAL_SESSION_KEY, GLOBAL_SESSION_DISPLAY_NAME } from "../types";
 import { formatAgo } from "../format";
 import { icons } from "../icons";
+import { GLOBAL_SESSION_KEY, GLOBAL_SESSION_DISPLAY_NAME } from "../types";
 
 export type ChatSessionsProps = {
   sessions: SessionsListResult | null;
@@ -97,22 +97,17 @@ function isGlobalSession(session: GatewaySessionRow): boolean {
 /**
  * Renders a single session item in the list.
  */
-function renderSessionItem(
-  session: GatewaySessionRow,
-  props: ChatSessionsProps,
-) {
+function renderSessionItem(session: GatewaySessionRow, props: ChatSessionsProps) {
   const isActive = session.key === props.activeSessionKey;
   const isGlobal = isGlobalSession(session);
-  const displayName = isGlobal
-    ? GLOBAL_SESSION_DISPLAY_NAME
-    : (session.displayName ?? session.key);
+  const displayName = isGlobal ? GLOBAL_SESSION_DISPLAY_NAME : (session.displayName ?? session.key);
   const updated = session.updatedAt ? formatAgo(session.updatedAt) : "";
-  
+
   // Global session cannot be renamed
   const canRename = !isGlobal && props.onRenameSession;
   // Global session cannot be deleted
   const canDelete = !isGlobal && props.onDeleteSession;
-  
+
   return html`
     <div class="chat-session-item-wrapper ${isActive ? "active" : ""} ${isGlobal ? "chat-session-item-wrapper--global" : ""}">
       <button
@@ -120,16 +115,18 @@ function renderSessionItem(
         @click=${() => props.onSelect(session.key)}
       >
         ${isGlobal ? html`<span class="chat-session-item__global-icon" aria-hidden="true">${icons.globe}</span>` : nothing}
-        ${canRename
-          ? renderEditableSessionName(displayName, session.key, props.onRenameSession)
-          : html`<div class="chat-session-item__name" title=${displayName}>${displayName}</div>`
+        ${
+          canRename
+            ? renderEditableSessionName(displayName, session.key, props.onRenameSession)
+            : html`<div class="chat-session-item__name" title=${displayName}>${displayName}</div>`
         }
         <div class="chat-session-item__meta">
           ${isGlobal ? "All sessions" : updated}
         </div>
       </button>
-      ${canRename
-        ? html`
+      ${
+        canRename
+          ? html`
           <button
             class="chat-session-item__delete"
             style="margin-right: 0;"
@@ -137,8 +134,8 @@ function renderSessionItem(
             @click=${(e: Event) => {
               e.stopPropagation();
               // Find the editable element and focus it
-              const wrapper = (e.target as HTMLElement).closest('.chat-session-item-wrapper');
-              const editable = wrapper?.querySelector('.chat-session-item__name--editable');
+              const wrapper = (e.target as HTMLElement).closest(".chat-session-item-wrapper");
+              const editable = wrapper?.querySelector(".chat-session-item__name--editable");
               if (editable) {
                 (editable as HTMLElement).focus();
               }
@@ -147,10 +144,11 @@ function renderSessionItem(
             ${icons.penLine}
           </button>
         `
-        : nothing
+          : nothing
       }
-      ${props.onExportSession
-        ? html`
+      ${
+        props.onExportSession
+          ? html`
           <button
             class="chat-session-item__delete"
             style="margin-right: 0;"
@@ -163,10 +161,11 @@ function renderSessionItem(
             ${icons.download}
           </button>
         `
-        : nothing
+          : nothing
       }
-      ${canDelete
-        ? html`
+      ${
+        canDelete
+          ? html`
           <button
             class="chat-session-item__delete"
             title="Delete Session"
@@ -178,7 +177,7 @@ function renderSessionItem(
             ${icons.trash}
           </button>
         `
-        : nothing
+          : nothing
       }
     </div>
   `;
@@ -187,22 +186,22 @@ function renderSessionItem(
 export function renderChatSessions(props: ChatSessionsProps) {
   const sessions = props.sessions?.sessions ?? [];
   const query = props.searchQuery.trim().toLowerCase();
-  
+
   // Separate Global session from regular sessions
   const globalSession = sessions.find(isGlobalSession);
-  const regularSessions = sessions.filter(s => !isGlobalSession(s));
-  
+  const regularSessions = sessions.filter((s) => !isGlobalSession(s));
+
   // Filter sessions based on search query
   const filteredRegularSessions = query
-    ? regularSessions.filter(s => {
+    ? regularSessions.filter((s) => {
         const name = (s.displayName ?? s.key).toLowerCase();
         return name.includes(query);
       })
     : regularSessions;
-  
+
   // Check if Global session matches search (always show if no query or if "global" matches)
   const showGlobal = !query || GLOBAL_SESSION_DISPLAY_NAME.toLowerCase().includes(query);
-  
+
   // Create a placeholder Global session if it doesn't exist in the data
   const globalSessionToRender: GatewaySessionRow = globalSession ?? {
     key: GLOBAL_SESSION_KEY,
@@ -224,8 +223,9 @@ export function renderChatSessions(props: ChatSessionsProps) {
           >
             ${icons.plus}
           </button>
-          ${props.mobileOpen && props.onCloseMobile
-            ? html`
+          ${
+            props.mobileOpen && props.onCloseMobile
+              ? html`
               <button
                 class="btn sm chat-sessions__close"
                 @click=${props.onCloseMobile}
@@ -235,7 +235,7 @@ export function renderChatSessions(props: ChatSessionsProps) {
                 ${icons.x}
               </button>
             `
-            : nothing
+              : nothing
           }
         </div>
       </div>
@@ -253,30 +253,36 @@ export function renderChatSessions(props: ChatSessionsProps) {
       </div>
       
       <div class="chat-sessions__list">
-        ${props.loading && sessions.length === 0
-          ? html`
+        ${
+          props.loading && sessions.length === 0
+            ? html`
               <div style="padding: 8px; display: grid; gap: 8px;">
-                ${[1, 2, 3, 4, 5].map(() => html`
-                  <div class="skeleton" style="height: 48px; width: 100%;"></div>
-                `)}
+                ${[1, 2, 3, 4, 5].map(
+                  () => html`
+                    <div class="skeleton" style="height: 48px; width: 100%"></div>
+                  `,
+                )}
               </div>
             `
-          : nothing
+            : nothing
         }
         
-        ${/* Always render Global session first if it matches the search */
+        ${
+          /* Always render Global session first if it matches the search */
           showGlobal ? renderSessionItem(globalSessionToRender, props) : nothing
         }
         
-        ${/* Render regular sessions */
-          filteredRegularSessions.map(session => renderSessionItem(session, props))
+        ${
+          /* Render regular sessions */
+          filteredRegularSessions.map((session) => renderSessionItem(session, props))
         }
         
-        ${!props.loading && !showGlobal && filteredRegularSessions.length === 0
-          ? html`<div class="muted" style="padding: 8px;">
+        ${
+          !props.loading && !showGlobal && filteredRegularSessions.length === 0
+            ? html`<div class="muted" style="padding: 8px;">
               ${query ? "No matching sessions." : "No sessions found."}
             </div>`
-          : nothing
+            : nothing
         }
       </div>
     </div>

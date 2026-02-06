@@ -4,8 +4,8 @@
  * Change tracking and diff computation for the property grid.
  */
 
-import { getValueAtPath, valuesAreDifferent } from "./flatten";
 import type { PropertyDefinition } from "../types";
+import { getValueAtPath, valuesAreDifferent } from "./flatten";
 
 /**
  * Single change entry
@@ -23,7 +23,7 @@ export interface ChangeEntry {
  */
 export function computeDiff(
   original: Record<string, unknown> | null,
-  current: Record<string, unknown> | null
+  current: Record<string, unknown> | null,
 ): ChangeEntry[] {
   if (!original || !current) {
     return [];
@@ -31,12 +31,7 @@ export function computeDiff(
 
   const changes: ChangeEntry[] = [];
 
-  function compare(
-    orig: unknown,
-    curr: unknown,
-    path: string[],
-    label: string
-  ) {
+  function compare(orig: unknown, curr: unknown, path: string[], label: string) {
     if (orig === curr) {
       return;
     }
@@ -97,7 +92,7 @@ export function computeDiff(
 export function isPropertyModified(
   def: PropertyDefinition,
   original: Record<string, unknown> | null,
-  current: Record<string, unknown> | null
+  current: Record<string, unknown> | null,
 ): boolean {
   if (!original || !current) {
     return false;
@@ -115,7 +110,7 @@ export function isPropertyModified(
 export function getModifiedPaths(
   definitions: PropertyDefinition[],
   original: Record<string, unknown> | null,
-  current: Record<string, unknown> | null
+  current: Record<string, unknown> | null,
 ): Set<string> {
   const modified = new Set<string>();
 

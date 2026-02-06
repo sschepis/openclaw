@@ -69,6 +69,7 @@ export async function loadDevices(state: DevicesState, opts?: { quiet?: boolean 
     state.devicesError = null;
   }
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("device.pair.list", {})) as DevicePairListResponse;
     state.devicesList = {
       pending: Array.isArray(res?.pending) ? res.pending : [],
@@ -119,6 +120,7 @@ export async function rotateDeviceToken(
     return;
   }
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request(
       "device.token.rotate",
       params,

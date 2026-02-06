@@ -19,10 +19,7 @@ import { DEFAULT_SECTIONS } from "./command-types";
  * Simple fuzzy match implementation.
  * Returns a score (higher = better match) and the matched character indices.
  */
-function fuzzyMatch(
-  query: string,
-  target: string,
-): { score: number; matches: number[] } | null {
+function fuzzyMatch(query: string, target: string): { score: number; matches: number[] } | null {
   const queryLower = query.toLowerCase();
   const targetLower = target.toLowerCase();
 
@@ -76,9 +73,7 @@ function fuzzyMatch(
 /**
  * Resolve a section from either a string ID or section object.
  */
-function resolveSection(
-  section: string | CommandSection | undefined,
-): CommandSection {
+function resolveSection(section: string | CommandSection | undefined): CommandSection {
   if (!section) {
     return DEFAULT_SECTIONS.TOOLS;
   }
@@ -189,8 +184,7 @@ export class CommandRegistry {
       // Include if there's a match (or empty query shows all)
       if (bestScore > 0 || !query) {
         // Adjust score by command priority
-        const priorityBonus =
-          ((command.priority ?? 0) as CommandPriority) * 5;
+        const priorityBonus = ((command.priority ?? 0) as CommandPriority) * 5;
         bestScore += priorityBonus;
 
         results.push({
@@ -224,7 +218,7 @@ export class CommandRegistry {
     }
 
     // Sort groups by section priority
-    const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    const sortedGroups = Array.from(groups.values()).toSorted((a, b) => {
       const aPriority = (a.section.priority ?? 0) as CommandPriority;
       const bPriority = (b.section.priority ?? 0) as CommandPriority;
       return bPriority - aPriority;

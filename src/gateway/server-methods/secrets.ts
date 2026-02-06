@@ -16,8 +16,12 @@ export function createSecretsHandlers(
       try {
         const value = await globalSecretsStore.get(p.key);
         respond(true, { value: value ?? null });
-      } catch (err: any) {
-        respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+      } catch (err: unknown) {
+        respond(
+          false,
+          undefined,
+          errorShape(ErrorCodes.UNAVAILABLE, err instanceof Error ? err.message : String(err)),
+        );
       }
     },
 
@@ -106,8 +110,12 @@ export function createSecretsHandlers(
       try {
         await globalSecretsStore.set(p.key, p.value);
         respond(true, { ok: true });
-      } catch (err: any) {
-        respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+      } catch (err: unknown) {
+        respond(
+          false,
+          undefined,
+          errorShape(ErrorCodes.UNAVAILABLE, err instanceof Error ? err.message : String(err)),
+        );
       }
     },
 
@@ -120,8 +128,12 @@ export function createSecretsHandlers(
       try {
         await globalSecretsStore.delete(p.key);
         respond(true, { ok: true });
-      } catch (err: any) {
-        respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+      } catch (err: unknown) {
+        respond(
+          false,
+          undefined,
+          errorShape(ErrorCodes.UNAVAILABLE, err instanceof Error ? err.message : String(err)),
+        );
       }
     },
   };

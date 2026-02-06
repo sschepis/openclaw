@@ -139,7 +139,9 @@ function extractRetryAfterMs(err: unknown): number | undefined {
 
   const getHeader = (name: string): string | undefined | null => {
     // oxlint-disable-next-line typescript/no-unsafe-call
-    if (typeof headers.get === "function") return headers.get(name);
+    if (typeof headers.get === "function") {
+      return headers.get(name);
+    }
     // oxlint-disable-next-line typescript/no-unsafe-member-access
     return headers[name] ?? headers[name.toLowerCase()];
   };

@@ -191,6 +191,7 @@ describe("config view", () => {
       container,
     );
 
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- explicit cast for test clarity
     const input = container.querySelector(".config-search__input") as HTMLInputElement | null;
     expect(input).not.toBeNull();
     if (!input) {

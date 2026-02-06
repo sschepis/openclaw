@@ -10,13 +10,34 @@ import type { PropertyRowContext } from "../types";
 /**
  * Render a string editor
  */
+/**
+ * Safely convert an unknown value to string for display
+ */
+function toDisplayString(val: unknown): string {
+  if (val === null || val === undefined) {
+    return "";
+  }
+  if (typeof val === "string") {
+    return val;
+  }
+  if (typeof val === "number" || typeof val === "boolean") {
+    return String(val);
+  }
+  // For objects, use JSON.stringify to avoid [object Object]
+  try {
+    return JSON.stringify(val);
+  } catch {
+    return "[complex value]";
+  }
+}
+
 export function renderStringEditor(ctx: PropertyRowContext): TemplateResult {
   const { def, value, isModified, disabled, onPatch } = ctx;
   const displayValue = value ?? "";
   const inputType = def.sensitive ? "password" : "text";
   const placeholder =
     def.defaultValue !== undefined
-      ? `Default: ${String(def.defaultValue)}`
+      ? `Default: ${toDisplayString(def.defaultValue)}`
       : def.sensitive
         ? "••••"
         : "";
@@ -26,7 +47,7 @@ export function renderStringEditor(ctx: PropertyRowContext): TemplateResult {
       <input
         type=${inputType}
         class="pg-editor__input"
-        .value=${String(displayValue)}
+        .value=${toDisplayString(displayValue)}
         placeholder=${placeholder}
         ?disabled=${disabled}
         @input=${(e: Event) => {
@@ -39,8 +60,9 @@ export function renderStringEditor(ctx: PropertyRowContext): TemplateResult {
           onPatch(val || undefined);
         }}
       />
-      ${def.defaultValue !== undefined && value !== undefined && value !== def.defaultValue
-        ? html`
+      ${
+        def.defaultValue !== undefined && value !== undefined && value !== def.defaultValue
+          ? html`
             <button
               type="button"
               class="pg-editor__reset"
@@ -51,7 +73,8 @@ export function renderStringEditor(ctx: PropertyRowContext): TemplateResult {
               ↺
             </button>
           `
-        : nothing}
+          : nothing
+      }
     </div>
   `;
 }

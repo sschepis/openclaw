@@ -2,8 +2,19 @@ import { html, nothing } from "lit";
 import type { AppViewState } from "./app-view-state";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { refreshChatAvatar } from "./app-chat";
-import { renderChatControls, renderTab, renderExpandableTab, renderThemeToggle } from "./app-render.helpers";
+import {
+  renderChatControls,
+  renderTab,
+  renderExpandableTab,
+  renderThemeToggle,
+} from "./app-render.helpers";
 import "./components/command-palette/command-palette";
+import {
+  handleSkillGroupToggle,
+  handleSkillExpandToggle,
+  handleSkillsViewChange,
+} from "./app-skills-handlers";
+import { loadActivities } from "./controllers/activities";
 import { loadChannels } from "./controllers/channels";
 import { loadChatHistory } from "./controllers/chat";
 import {
@@ -21,14 +32,6 @@ import {
   removeCronJob,
   addCronJob,
 } from "./controllers/cron";
-import {
-  loadSecrets,
-  saveSecret,
-  deleteSecret,
-  openSecretForm,
-  closeSecretForm,
-  updateSecretForm,
-} from "./controllers/secrets";
 import { loadDebug, callDebugMethod } from "./controllers/debug";
 import {
   approveDevicePairing,
@@ -46,6 +49,14 @@ import {
 import { loadLogs } from "./controllers/logs";
 import { loadNodes } from "./controllers/nodes";
 import { loadPresence } from "./controllers/presence";
+import {
+  loadSecrets,
+  saveSecret,
+  deleteSecret,
+  openSecretForm,
+  closeSecretForm,
+  updateSecretForm,
+} from "./controllers/secrets";
 import { deleteSession, loadSessions, patchSession } from "./controllers/sessions";
 import {
   installSkill,
@@ -56,24 +67,23 @@ import {
 } from "./controllers/skills";
 import { icons } from "./icons";
 import { TAB_GROUPS, subtitleForTab, titleForTab, isExpandableTab } from "./navigation";
-import { loadActivities } from "./controllers/activities";
 import { renderActivities } from "./views/activities";
 import { renderChannels } from "./views/channels";
 import { renderChat } from "./views/chat";
+import { renderChatSettings } from "./views/chat-settings";
 import { renderConfig } from "./views/config";
 import { renderCron } from "./views/cron";
-import { renderSecrets } from "./views/secrets";
 import { renderDebug } from "./views/debug";
 import { renderExecApprovalPrompt } from "./views/exec-approval";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation";
-import { renderSessionDeleteConfirm } from "./views/session-delete-confirm";
 import { renderInstances } from "./views/instances";
 import { renderLogs } from "./views/logs";
 import { renderNodes } from "./views/nodes";
 import { renderOverview } from "./views/overview";
+import { renderSecrets } from "./views/secrets";
+import { renderSessionDeleteConfirm } from "./views/session-delete-confirm";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
-import { renderChatSettings } from "./views/chat-settings";
 
 const AVATAR_DATA_RE = /^data:/i;
 const AVATAR_HTTP_RE = /^https?:\/\//i;
@@ -204,9 +214,7 @@ export function renderApp(state: AppViewState) {
               </button>
               <div class="nav-group__items">
                 ${group.tabs.map((tab) =>
-                  isExpandableTab(tab)
-                    ? renderExpandableTab(state, tab)
-                    : renderTab(state, tab)
+                  isExpandableTab(tab) ? renderExpandableTab(state, tab) : renderTab(state, tab),
                 )}
               </div>
             </div>
@@ -347,7 +355,9 @@ export function renderApp(state: AppViewState) {
                 loading: state.presenceLoading,
                 entries: state.presenceEntries,
                 lastError: state.presenceError,
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
                 statusMessage: state.presenceStatus as any,
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
                 onRefresh: () => loadPresence(state as any),
               })
             : nothing
@@ -448,7 +458,7 @@ export function renderApp(state: AppViewState) {
                 onFormUpdate: (patch) => updateSecretForm(state, patch),
                 onFormSave: () => {
                   if (state.secretsForm) {
-                    saveSecret(state, state.secretsForm.key, state.secretsForm.value);
+                    void saveSecret(state, state.secretsForm.key, state.secretsForm.value);
                   }
                 },
               })
@@ -465,13 +475,34 @@ export function renderApp(state: AppViewState) {
                 edits: state.skillEdits,
                 messages: state.skillMessages,
                 busyKey: state.skillsBusyKey,
+                view: state.skillsView,
+                registryLoading: state.registryLoading,
+                registryError: state.registryError,
+                registryList: state.registryList,
+                expandedGroups: state.skillsExpandedGroups,
+                expandedSkill: state.skillsExpandedSkill,
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
                 onFilterChange: (next: any) => (state.skillsFilter = next),
-                onRefresh: () => loadSkills(state, { clearMessages: true }),
-                onToggle: (key: any, enabled: any) => updateSkillEnabled(state, key, enabled),
-                onEdit: (key: any, value: any) => updateSkillEdit(state, key, value),
-                onSaveKey: (key: any) => saveSkillApiKey(state, key),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
+                onRefresh: () => loadSkills(state as any, { clearMessages: true }),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
+                onToggle: (key: any, enabled: any) =>
+                  // oxlint-disable-next-line typescript-eslint/no-explicit-any -- legacy type cast
+                  updateSkillEnabled(state as any, key, enabled),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
+                onEdit: (key: any, value: any) => updateSkillEdit(state as any, key, value),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
+                onSaveKey: (key: any) => saveSkillApiKey(state as any, key),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
                 onInstall: (skillKey: any, name: any, installId: any) =>
-                  installSkill(state, skillKey, name, installId),
+                  // oxlint-disable-next-line typescript-eslint/no-explicit-any -- legacy type cast
+                  installSkill(state as any, skillKey, name, installId),
+                onViewChange: (view: "installed" | "registry") =>
+                  handleSkillsViewChange(state, view),
+                onGroupToggle: (group: string) => handleSkillGroupToggle(state, group),
+                onSkillExpand: (skillKey: string | null) =>
+                  handleSkillExpandToggle(state, skillKey),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
               } as any)
             : nothing
         }
@@ -608,10 +639,7 @@ export function renderApp(state: AppViewState) {
                 onRefresh: () => {
                   state.resetToolStream();
                   // Recommendations are refreshed after loadChatHistory completes (in the controller)
-                  return Promise.all([
-                    loadChatHistory(state),
-                    refreshChatAvatar(state),
-                  ]);
+                  return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);
                 },
                 onToggleFocusMode: () => {
                   if (state.onboarding) {
@@ -650,7 +678,8 @@ export function renderApp(state: AppViewState) {
                   setTimeout(() => state.resetChatScroll(), 0);
                 },
                 mobileSessionsOpen: state.mobileSessionsOpen,
-                onToggleMobileSessions: () => (state.mobileSessionsOpen = !state.mobileSessionsOpen),
+                onToggleMobileSessions: () =>
+                  (state.mobileSessionsOpen = !state.mobileSessionsOpen),
                 sessionSearchQuery: state.sessionSearchQuery,
                 onSessionSearchChange: (query) => (state.sessionSearchQuery = query),
                 onToggleMic: () => state.handleToggleMic(),
@@ -674,7 +703,9 @@ export function renderApp(state: AppViewState) {
                 slashAutocompleteQuery: state.slashAutocompleteQuery,
                 slashAutocompleteAgents: [], // TODO: populate from group chat agents
                 isGroupChat: false, // TODO: determine from session type
-                onSlashAutocompleteSelect: (suggestion: any) => state.handleSlashAutocompleteSelect(suggestion),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
+                onSlashAutocompleteSelect: (suggestion: any) =>
+                  state.handleSlashAutocompleteSelect(suggestion),
                 onSlashAutocompleteClose: () => state.handleSlashAutocompleteClose(),
               })
             : nothing
@@ -759,6 +790,7 @@ export function renderApp(state: AppViewState) {
                   state.logsLevelFilters = { ...state.logsLevelFilters, [level]: enabled };
                 },
                 onToggleAutoFollow: (next) => (state.logsAutoFollow = next),
+                // oxlint-disable-next-line typescript/no-explicit-any -- legacy type cast
                 onRefresh: () => loadLogs(state as any, { reset: true }),
                 onExport: (lines, label) => state.exportLogs(lines, label),
                 onScroll: (event) => state.handleLogsScroll(event),

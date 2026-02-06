@@ -6,8 +6,8 @@
  */
 
 import type { Command } from "./command-types";
-import { DEFAULT_SECTIONS, CommandPriority } from "./command-types";
 import { commandRegistry } from "./command-registry";
+import { DEFAULT_SECTIONS, CommandPriority } from "./command-types";
 
 /**
  * Context interface for commands that need app state.
@@ -16,19 +16,19 @@ export interface CommandContext {
   // Session operations
   onNewSession: () => void;
   onSwitchSession: (sessionKey: string) => void;
-  
+
   // Navigation
   onNavigate: (tab: string) => void;
-  
+
   // Settings
   onOpenSettings: () => void;
   onToggleTheme: () => void;
-  
+
   // Agents (for group chat)
   onAddAgent?: () => void;
   onRemoveAgent?: (handle: string) => void;
   onRenameAgent?: (handle: string) => void;
-  
+
   // Current state
   getCurrentTab: () => string;
   getSessionKeys: () => Array<{ key: string; displayName: string }>;
@@ -60,7 +60,7 @@ export function updateCommandContext(partial: Partial<CommandContext>): void {
  */
 function registerDefaultCommands(): void {
   commandRegistry.clear();
-  
+
   // Session commands
   commandRegistry.register(
     {

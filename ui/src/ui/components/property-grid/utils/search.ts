@@ -5,15 +5,12 @@
  * match highlighting support.
  */
 
-import type { PropertyDefinition, SearchMatch, SearchResult } from "../types";
+import type { PropertyDefinition, SearchResult } from "../types";
 
 /**
  * Search properties by query and return scored results
  */
-export function searchProperties(
-  definitions: PropertyDefinition[],
-  query: string
-): SearchResult[] {
+export function searchProperties(definitions: PropertyDefinition[], query: string): SearchResult[] {
   const trimmed = query.trim();
 
   // No query - return all with null match
@@ -82,7 +79,7 @@ export function searchProperties(
   }
 
   // Sort by score descending
-  return results.sort((a, b) => b.score - a.score);
+  return results.toSorted((a, b) => b.score - a.score);
 }
 
 /**
@@ -94,7 +91,7 @@ function mergeRanges(ranges: [number, number][]): [number, number][] {
   }
 
   // Sort by start position
-  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  const sorted = [...ranges].toSorted((a, b) => a[0] - b[0]);
   const merged: [number, number][] = [sorted[0]];
 
   for (let i = 1; i < sorted.length; i++) {
@@ -119,7 +116,7 @@ function mergeRanges(ranges: [number, number][]): [number, number][] {
  */
 export function filterVisibleResults(
   results: SearchResult[],
-  expandedPaths: Set<string>
+  expandedPaths: Set<string>,
 ): SearchResult[] {
   const visible: SearchResult[] = [];
   const visibleParents = new Set<string>();
@@ -174,7 +171,7 @@ export function filterVisibleResults(
  */
 export function expandParentsForMatches(
   results: SearchResult[],
-  currentExpanded: Set<string>
+  currentExpanded: Set<string>,
 ): Set<string> {
   const newExpanded = new Set(currentExpanded);
 
@@ -200,10 +197,7 @@ export interface HighlightPart {
   highlight: boolean;
 }
 
-export function splitByHighlights(
-  text: string,
-  ranges: [number, number][]
-): HighlightPart[] {
+export function splitByHighlights(text: string, ranges: [number, number][]): HighlightPart[] {
   if (ranges.length === 0) {
     return [{ text, highlight: false }];
   }
@@ -211,7 +205,7 @@ export function splitByHighlights(
   const parts: HighlightPart[] = [];
   let lastEnd = 0;
 
-  for (const [start, end] of ranges.sort((a, b) => a[0] - b[0])) {
+  for (const [start, end] of ranges.toSorted((a, b) => a[0] - b[0])) {
     if (start > lastEnd) {
       parts.push({ text: text.slice(lastEnd, start), highlight: false });
     }

@@ -6,12 +6,7 @@
  */
 
 import type { ConfigUiHints, ConfigUiHint } from "../../../types";
-import type {
-  JsonSchema,
-  PropertyDefinition,
-  PropertyType,
-  FlattenedSchema,
-} from "../types";
+import type { JsonSchema, PropertyDefinition, PropertyType, FlattenedSchema } from "../types";
 
 const META_KEYS = new Set(["title", "description", "default", "nullable"]);
 
@@ -82,7 +77,7 @@ export function pathKey(path: Array<string | number>): string {
  */
 export function hintForPath(
   path: Array<string | number>,
-  hints: ConfigUiHints
+  hints: ConfigUiHints,
 ): ConfigUiHint | undefined {
   const key = pathKey(path);
   const direct = hints[key];
@@ -128,9 +123,7 @@ export function humanize(raw: string): string {
  */
 export function isSensitivePath(path: Array<string | number>): boolean {
   const key = pathKey(path).toLowerCase();
-  return SENSITIVE_PATTERNS.some(
-    (pattern) => key.includes(pattern) || key.endsWith("key")
-  );
+  return SENSITIVE_PATTERNS.some((pattern) => key.includes(pattern) || key.endsWith("key"));
 }
 
 /**
@@ -147,13 +140,12 @@ function resolvePropertyType(schema: JsonSchema): PropertyType {
   if (schema.anyOf || schema.oneOf) {
     const variants = schema.anyOf ?? schema.oneOf ?? [];
     const nonNull = variants.filter(
-      (v) =>
-        !(v.type === "null" || (Array.isArray(v.type) && v.type.includes("null")))
+      (v) => !(v.type === "null" || (Array.isArray(v.type) && v.type.includes("null"))),
     );
 
     // Check if all variants are literals
     const allLiterals = nonNull.every(
-      (v) => v.const !== undefined || (v.enum && v.enum.length === 1)
+      (v) => v.const !== undefined || (v.enum && v.enum.length === 1),
     );
     if (allLiterals && nonNull.length > 0) {
       return "enum";
@@ -215,7 +207,7 @@ export function flattenSchema(
   hints: ConfigUiHints,
   path: string[] = [],
   depth: number = 0,
-  expandedPaths: Set<string> = new Set()
+  expandedPaths: Set<string> = new Set(),
 ): FlattenedSchema {
   const results: PropertyDefinition[] = [];
   const unsupportedPaths: string[] = [];
@@ -252,7 +244,7 @@ export function flattenSchema(
 
     // Recursively flatten properties
     const entries = Object.entries(schema.properties);
-    const sorted = entries.sort((a, b) => {
+    const sorted = entries.toSorted((a, b) => {
       const orderA = hintForPath([...path, a[0]], hints)?.order ?? 50;
       const orderB = hintForPath([...path, b[0]], hints)?.order ?? 50;
       return orderA - orderB || a[0].localeCompare(b[0]);
@@ -271,7 +263,7 @@ export function flattenSchema(
         hints,
         [...path, key],
         path.length === 0 ? 0 : depth + 1,
-        expandedPaths
+        expandedPaths,
       );
       results.push(...nested.definitions);
       unsupportedPaths.push(...nested.unsupportedPaths);
@@ -292,7 +284,7 @@ export function flattenSchema(
           hints,
           [...path, key],
           depth + 1,
-          expandedPaths
+          expandedPaths,
         );
         results.push(...nested.definitions);
         unsupportedPaths.push(...nested.unsupportedPaths);
@@ -322,9 +314,7 @@ export function flattenSchema(
 
     // If expanded, show array items
     if (isExpanded) {
-      const itemSchema = Array.isArray(schema.items)
-        ? schema.items[0]
-        : schema.items;
+      const itemSchema = Array.isArray(schema.items) ? schema.items[0] : schema.items;
       if (itemSchema) {
         for (let i = 0; i < arr.length; i++) {
           const nested = flattenSchema(
@@ -333,7 +323,7 @@ export function flattenSchema(
             hints,
             [...path, i.toString()],
             depth + 1,
-            expandedPaths
+            expandedPaths,
           );
           results.push(...nested.definitions);
           unsupportedPaths.push(...nested.unsupportedPaths);
@@ -369,10 +359,7 @@ export function flattenSchema(
 /**
  * Get value at a path from a nested object
  */
-export function getValueAtPath(
-  obj: unknown,
-  path: string[]
-): unknown {
+export function getValueAtPath(obj: unknown, path: string[]): unknown {
   let current = obj;
   for (const segment of path) {
     if (current == null || typeof current !== "object") {

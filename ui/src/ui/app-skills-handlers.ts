@@ -1,14 +1,35 @@
-import { loadSkillsRegistry } from "./controllers/skills";
-import type { OpenClawApp } from "./app";
+import type { AppViewState } from "./app-view-state";
+import {
+  loadSkillsRegistry,
+  toggleSkillGroup,
+  toggleSkillExpanded,
+  type SkillsState,
+} from "./controllers/skills";
 
-type App = OpenClawApp & {
+type SkillsAppState = {
   skillsView: "installed" | "registry";
-  registryList: any[];
+  registryList: unknown[];
+  skillsExpandedGroups: Set<string>;
+  skillsExpandedSkill: string | null;
 };
 
-export function handleSkillsViewChange(app: App, view: "installed" | "registry") {
+export function handleSkillsViewChange(
+  app: AppViewState | SkillsAppState,
+  view: "installed" | "registry",
+) {
   app.skillsView = view;
   if (view === "registry" && app.registryList.length === 0) {
-    loadSkillsRegistry(app as any);
+    void loadSkillsRegistry(app as unknown as SkillsState);
   }
+}
+
+export function handleSkillGroupToggle(app: AppViewState | SkillsAppState, group: string) {
+  toggleSkillGroup(app as unknown as SkillsState, group);
+}
+
+export function handleSkillExpandToggle(
+  app: AppViewState | SkillsAppState,
+  skillKey: string | null,
+) {
+  toggleSkillExpanded(app as unknown as SkillsState, skillKey);
 }

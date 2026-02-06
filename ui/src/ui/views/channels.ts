@@ -55,13 +55,17 @@ export function renderChannels(props: ChannelsProps) {
       enabled: channelEnabled(key, props),
       order: index,
     }))
-    .slice()
-    .sort((a: { key: string; enabled: boolean; order: number }, b: { key: string; enabled: boolean; order: number }) => {
-      if (a.enabled !== b.enabled) {
-        return a.enabled ? -1 : 1;
-      }
-      return a.order - b.order;
-    });
+    .toSorted(
+      (
+        a: { key: string; enabled: boolean; order: number },
+        b: { key: string; enabled: boolean; order: number },
+      ) => {
+        if (a.enabled !== b.enabled) {
+          return a.enabled ? -1 : 1;
+        }
+        return a.order - b.order;
+      },
+    );
 
   const channelData: ChannelsChannelData = {
     whatsapp,
@@ -133,12 +137,15 @@ function renderChannelsSummary(
 }
 
 /** Get quick status indicator for a channel */
-function getChannelQuickStatus(key: string, data: ChannelsChannelData): { icon: string; class: string } {
+function getChannelQuickStatus(
+  key: string,
+  data: ChannelsChannelData,
+): { icon: string; class: string } {
   const channelStatus = getChannelStatusByKey(key, data);
   if (!channelStatus) {
     return { icon: "○", class: "status--unknown" };
   }
-  
+
   const configured = channelStatus.configured;
   const running = channelStatus.running;
   const connected = channelStatus.connected;
@@ -160,7 +167,10 @@ function getChannelQuickStatus(key: string, data: ChannelsChannelData): { icon: 
 }
 
 /** Get channel status object by key */
-function getChannelStatusByKey(key: string, data: ChannelsChannelData): {
+function getChannelStatusByKey(
+  key: string,
+  data: ChannelsChannelData,
+): {
   configured?: boolean;
   running?: boolean;
   connected?: boolean;
@@ -215,11 +225,15 @@ function renderChannelAccordionItem(
         </span>
         <span class="channel-accordion__chevron">${isExpanded ? "▼" : "▶"}</span>
       </button>
-      ${isExpanded ? html`
+      ${
+        isExpanded
+          ? html`
         <div class="channel-accordion__content">
           ${renderChannelContent(key, props, data)}
         </div>
-      ` : nothing}
+      `
+          : nothing
+      }
     </div>
   `;
 }
@@ -315,7 +329,9 @@ function renderHealthDebugPanel(props: ChannelsProps) {
         <span class="channels-debug__meta">${props.lastSuccessAt ? formatAgo(props.lastSuccessAt) : "n/a"}</span>
         <span class="channels-debug__chevron">${props.showHealthDebug ? "▼" : "▶"}</span>
       </summary>
-      ${props.showHealthDebug ? html`
+      ${
+        props.showHealthDebug
+          ? html`
         <div class="channels-debug__content">
           ${
             props.lastError
@@ -328,7 +344,9 @@ function renderHealthDebugPanel(props: ChannelsProps) {
 ${props.snapshot ? JSON.stringify(props.snapshot, null, 2) : "No snapshot yet."}
           </pre>
         </div>
-      ` : nothing}
+      `
+          : nothing
+      }
     </details>
   `;
 }

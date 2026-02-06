@@ -1,9 +1,9 @@
-import { generateUUID } from "./uuid";
-import { loadChatHistory, fetchChatHistory } from "./controllers/chat";
-import { loadSessions, patchSession } from "./controllers/sessions";
-import { refreshChatAvatar } from "./app-chat";
 import type { OpenClawApp } from "./app";
 import type { GatewaySessionRow, SessionsListResult } from "./types";
+import { refreshChatAvatar } from "./app-chat";
+import { loadChatHistory, fetchChatHistory } from "./controllers/chat";
+import { loadSessions, patchSession } from "./controllers/sessions";
+import { generateUUID } from "./uuid";
 
 // We need to access the app instance with extended props to call its methods/update state
 // since we are moving logic out of the class.
@@ -53,7 +53,7 @@ export type SpawnSessionResult = {
 
 export async function handleNewSession(app: App) {
   const next = generateUUID();
-  
+
   // Create a new session row to add to the sessions list immediately
   const newSessionRow: GatewaySessionRow = {
     key: next,
@@ -61,7 +61,7 @@ export async function handleNewSession(app: App) {
     displayName: "New Session",
     updatedAt: Date.now(),
   };
-  
+
   // Optimistically add the new session to the list at the top
   if (app.sessionsResult) {
     app.sessionsResult = {
@@ -78,7 +78,7 @@ export async function handleNewSession(app: App) {
       sessions: [newSessionRow],
     };
   }
-  
+
   // Update the active session
   app.sessionKey = next;
   app.chatMessage = "";
@@ -96,8 +96,8 @@ export async function handleNewSession(app: App) {
     lastActiveSessionKey: next,
   });
   await app.loadAssistantIdentity();
-  await loadChatHistory(app as any);
-  await refreshChatAvatar(app as any);
+  await loadChatHistory(app as Parameters<typeof loadChatHistory>[0]);
+  await refreshChatAvatar(app as Parameters<typeof refreshChatAvatar>[0]);
 }
 
 /**
@@ -108,7 +108,10 @@ export async function handleNewSession(app: App) {
  * @param options - Options for spawning the session
  * @returns Result of the spawn operation
  */
-export async function spawnSession(app: App, options: SpawnSessionOptions = {}): Promise<SpawnSessionResult> {
+export async function spawnSession(
+  app: App,
+  options: SpawnSessionOptions = {},
+): Promise<SpawnSessionResult> {
   const {
     clone = false,
     sourceSessionKey = app.sessionKey,
@@ -124,13 +127,13 @@ export async function spawnSession(app: App, options: SpawnSessionOptions = {}):
     // Generate a new session key
     const newSessionKey = generateUUID();
     const now = Date.now();
-    
+
     // Determine the display name for the new session
     let resolvedDisplayName = displayName;
     if (!resolvedDisplayName) {
       if (clone) {
         // Find the source session's display name
-        const sourceSession = app.sessionsResult?.sessions?.find(s => s.key === sourceSessionKey);
+        const sourceSession = app.sessionsResult?.sessions?.find((s) => s.key === sourceSessionKey);
         const sourceDisplayName = sourceSession?.displayName ?? sourceSessionKey;
         resolvedDisplayName = `Clone of ${sourceDisplayName}`;
       } else {
@@ -150,7 +153,7 @@ export async function spawnSession(app: App, options: SpawnSessionOptions = {}):
     if (clone) {
       // Fetch the source session's history
       const sourceHistory = await fetchChatHistory(app.client, sourceSessionKey);
-      
+
       if (sourceHistory && sourceHistory.length > 0) {
         // Use the gateway to clone/import history to the new session
         // This requires a sessions.clone or chat.import API call
@@ -214,11 +217,11 @@ export async function spawnSession(app: App, options: SpawnSessionOptions = {}):
         lastActiveSessionKey: newSessionKey,
       });
       await app.loadAssistantIdentity();
-      await loadChatHistory(app as any);
-      await refreshChatAvatar(app as any);
+      await loadChatHistory(app as Parameters<typeof loadChatHistory>[0]);
+      await refreshChatAvatar(app as Parameters<typeof refreshChatAvatar>[0]);
     } else {
       // Just refresh the sessions list to ensure the new session appears
-      await loadSessions(app as any);
+      await loadSessions(app as Parameters<typeof loadSessions>[0]);
     }
 
     return { success: true, sessionKey: newSessionKey };

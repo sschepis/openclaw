@@ -51,6 +51,7 @@ describe("config form renderer", () => {
       container,
     );
 
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- explicit cast for test clarity
     const tokenInput = container.querySelector("input[type='password']") as HTMLInputElement | null;
     expect(tokenInput).not.toBeNull();
     if (!tokenInput) {
@@ -67,6 +68,7 @@ describe("config form renderer", () => {
     tokenButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(onPatch).toHaveBeenCalledWith(["mode"], "token");
 
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- explicit cast for test clarity
     const checkbox = container.querySelector("input[type='checkbox']") as HTMLInputElement | null;
     expect(checkbox).not.toBeNull();
     if (!checkbox) {

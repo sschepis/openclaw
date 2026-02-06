@@ -29,6 +29,7 @@ export async function loadActivities(
       activeMinutes: options?.activeMinutes ?? 60,
       limit: options?.limit ?? 50,
     };
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request(
       "activities.list",
       params,
@@ -52,6 +53,7 @@ export async function executeAction(
   }
 
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- client.request returns unknown, assertion is needed
     const res = (await state.client.request("activities.execute", {
       key: sessionKey,
       actionId,

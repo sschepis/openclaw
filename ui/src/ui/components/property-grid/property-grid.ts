@@ -12,10 +12,10 @@ import type {
   PropertyRowContext,
   SearchResult,
 } from "./types";
-import { flattenSchema, getValueAtPath, valuesAreDifferent } from "./utils/flatten";
-import { searchProperties, expandParentsForMatches } from "./utils/search";
-import { computeDiff, truncateValue } from "./utils/diff";
 import { renderPropertyRow } from "./row";
+import { computeDiff, truncateValue } from "./utils/diff";
+import { flattenSchema, getValueAtPath } from "./utils/flatten";
+import { searchProperties, expandParentsForMatches } from "./utils/search";
 
 /**
  * Render the complete property grid
@@ -55,25 +55,23 @@ export function renderPropertyGrid(config: PropertyGridConfig): TemplateResult {
     uiHints,
     [],
     0,
-    expandedPaths
+    expandedPaths,
   );
 
   // Filter by active section if specified
   let sectionFilteredDefs = definitions;
   if (activeSection) {
-    sectionFilteredDefs = definitions.filter(
-      (def) => def.path[0] === activeSection
-    );
+    sectionFilteredDefs = definitions.filter((def) => def.path[0] === activeSection);
   }
 
   // Apply search filter
   let searchResults: SearchResult[];
-  let effectiveExpanded = expandedPaths;
+  let _effectiveExpanded = expandedPaths;
 
   if (searchQuery.trim()) {
     searchResults = searchProperties(sectionFilteredDefs, searchQuery);
     // Auto-expand parents of matched items
-    effectiveExpanded = expandParentsForMatches(searchResults, expandedPaths);
+    _effectiveExpanded = expandParentsForMatches(searchResults, expandedPaths);
   } else {
     searchResults = sectionFilteredDefs.map((def) => ({ def, match: null, score: 0 }));
   }
@@ -97,11 +95,9 @@ export function renderPropertyGrid(config: PropertyGridConfig): TemplateResult {
         modifiedPaths,
         disabled,
         onPatch,
-        onExpandToggle
+        onExpandToggle,
       )}
-      ${unsupportedPaths.length > 0
-        ? renderUnsupportedWarning(unsupportedPaths)
-        : nothing}
+      ${unsupportedPaths.length > 0 ? renderUnsupportedWarning(unsupportedPaths) : nothing}
       ${diff.length > 0 ? renderDiffPanel(diff) : nothing}
     </div>
   `;
@@ -113,7 +109,7 @@ export function renderPropertyGrid(config: PropertyGridConfig): TemplateResult {
 function renderHeader(
   searchQuery: string,
   onSearchChange: (query: string) => void,
-  changeCount: number
+  changeCount: number,
 ): TemplateResult {
   return html`
     <div class="pg__header">
@@ -126,8 +122,9 @@ function renderHeader(
           .value=${searchQuery}
           @input=${(e: Event) => onSearchChange((e.target as HTMLInputElement).value)}
         />
-        ${searchQuery
-          ? html`
+        ${
+          searchQuery
+            ? html`
               <button
                 type="button"
                 class="pg__search-clear"
@@ -136,7 +133,8 @@ function renderHeader(
                 ×
               </button>
             `
-          : nothing}
+            : nothing
+        }
       </div>
       <div class="pg__column-headers">
         <div class="pg__column-header pg__column-header--path">
@@ -144,9 +142,7 @@ function renderHeader(
         </div>
         <div class="pg__column-header pg__column-header--value">
           Value
-          ${changeCount > 0
-            ? html`<span class="pg__change-badge">${changeCount}</span>`
-            : nothing}
+          ${changeCount > 0 ? html`<span class="pg__change-badge">${changeCount}</span>` : nothing}
         </div>
       </div>
     </div>
@@ -163,7 +159,7 @@ function renderBody(
   modifiedPaths: Set<string>,
   disabled: boolean,
   onPatch: (path: string[], value: unknown) => void,
-  onExpandToggle: (pathKey: string) => void
+  onExpandToggle: (pathKey: string) => void,
 ): TemplateResult {
   if (results.length === 0) {
     return html`
@@ -181,9 +177,7 @@ function renderBody(
       ${results.map((result) => {
         const { def, match } = result;
         const currentValue = getValueAtPath(value ?? {}, def.path);
-        const origValue = originalValue
-          ? getValueAtPath(originalValue, def.path)
-          : undefined;
+        const origValue = originalValue ? getValueAtPath(originalValue, def.path) : undefined;
         const isModified = modifiedPaths.has(def.pathKey);
 
         const ctx: PropertyRowContext = {
@@ -222,7 +216,7 @@ function renderUnsupportedWarning(paths: string[]): TemplateResult {
  * Render the diff panel showing pending changes
  */
 function renderDiffPanel(
-  diff: Array<{ pathKey: string; path: string[]; from: unknown; to: unknown; label: string }>
+  diff: Array<{ pathKey: string; path: string[]; from: unknown; to: unknown; label: string }>,
 ): TemplateResult {
   return html`
     <details class="pg__diff">
@@ -243,7 +237,7 @@ function renderDiffPanel(
                 <span class="pg__diff-to">${truncateValue(change.to)}</span>
               </span>
             </div>
-          `
+          `,
         )}
       </div>
     </details>
@@ -255,8 +249,8 @@ function renderDiffPanel(
  */
 export function createInitialExpandedPaths(
   schema: PropertyGridConfig["schema"],
-  value: Record<string, unknown> | null,
-  uiHints: PropertyGridConfig["uiHints"]
+  _value: Record<string, unknown> | null,
+  _uiHints: PropertyGridConfig["uiHints"],
 ): Set<string> {
   if (!schema || !schema.properties) {
     return new Set();
@@ -269,10 +263,7 @@ export function createInitialExpandedPaths(
 /**
  * Toggle expansion state for a path
  */
-export function toggleExpansion(
-  expandedPaths: Set<string>,
-  pathKey: string
-): Set<string> {
+export function toggleExpansion(expandedPaths: Set<string>, pathKey: string): Set<string> {
   const next = new Set(expandedPaths);
   if (next.has(pathKey)) {
     next.delete(pathKey);

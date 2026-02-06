@@ -1,8 +1,8 @@
 import { html, nothing } from "lit";
 import type { ActivityState, ActivityAction, StateValue } from "../types.js";
 import { formatAgo } from "../format.js";
-import { pathForTab } from "../navigation.js";
 import { icons } from "../icons.js";
+import { pathForTab } from "../navigation.js";
 
 export type ActivitiesProps = {
   loading: boolean;
@@ -10,11 +10,7 @@ export type ActivitiesProps = {
   error: string | null;
   basePath: string;
   onRefresh: () => void;
-  onAction: (
-    sessionKey: string,
-    actionId: string,
-    params?: Record<string, unknown>,
-  ) => void;
+  onAction: (sessionKey: string, actionId: string, params?: Record<string, unknown>) => void;
   onOpenChat: (sessionKey: string) => void;
   // New props for expanded state management
   expandedSummaries?: Set<string>;
@@ -45,8 +41,10 @@ function formatTokens(tokens: number): string {
 
 // Simple markdown to HTML conversion for summaries
 function renderMarkdownText(text: string): string {
-  if (!text) return "";
-  
+  if (!text) {
+    return "";
+  }
+
   let result = text
     // Escape HTML first
     .replace(/&/g, "&amp;")
@@ -68,11 +66,11 @@ function renderMarkdownText(text: string): string {
     .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
     // Line breaks (but not double for paragraphs)
     .replace(/\n/g, "<br>");
-  
+
   // Wrap consecutive <li> in <ul>
   result = result.replace(/(<li>.*?<\/li>)(<br>)?/g, "$1");
   result = result.replace(/(<li>.*?<\/li>)+/g, (match) => `<ul>${match}</ul>`);
-  
+
   return result;
 }
 
@@ -91,16 +89,18 @@ export function renderActivities(props: ActivitiesProps) {
         </button>
       </div>
 
-      ${props.error
-        ? html`<div class="callout danger" style="margin-top: 12px;">${props.error}</div>`
-        : nothing}
+      ${
+        props.error
+          ? html`<div class="callout danger" style="margin-top: 12px;">${props.error}</div>`
+          : nothing
+      }
 
       <div class="activities-grid">
-        ${activities.length === 0
-          ? renderEmptyState(props.loading)
-          : activities.map((activity) =>
-              renderActivityPanel(activity, props),
-            )}
+        ${
+          activities.length === 0
+            ? renderEmptyState(props.loading)
+            : activities.map((activity) => renderActivityPanel(activity, props))
+        }
       </div>
     </section>
   `;
@@ -114,9 +114,11 @@ function renderEmptyState(loading: boolean) {
         ${loading ? "Loading activities..." : "No active sessions"}
       </div>
       <div class="activities-empty__description">
-        ${loading
-          ? "Please wait while we fetch your activities."
-          : "Start a new agent session to see it appear here."}
+        ${
+          loading
+            ? "Please wait while we fetch your activities."
+            : "Start a new agent session to see it appear here."
+        }
       </div>
     </div>
   `;
@@ -170,9 +172,9 @@ function renderActivityPanel(activity: ActivityState, props: ActivitiesProps) {
 }
 
 function renderSummarySection(
-  activity: ActivityState, 
-  isExpanded: boolean, 
-  props: ActivitiesProps
+  activity: ActivityState,
+  isExpanded: boolean,
+  props: ActivitiesProps,
 ) {
   const summary = activity.summary || "";
   const needsExpand = summary.length > 200;
@@ -190,13 +192,15 @@ function renderSummarySection(
         class="activity-panel__summary ${needsExpand && !isExpanded ? "activity-panel__summary--collapsed" : ""} ${isExpanded ? "activity-panel__summary--expanded" : ""}"
         .innerHTML=${renderedHtml}
       ></div>
-      ${needsExpand
-        ? html`
+      ${
+        needsExpand
+          ? html`
             <button class="activity-panel__toggle" @click=${handleToggle}>
               ${isExpanded ? "Show less ▲" : "Show more ▼"}
             </button>
           `
-        : nothing}
+          : nothing
+      }
     </div>
   `;
 }
@@ -207,11 +211,13 @@ function renderMetricsChips(activity: ActivityState) {
   const chips: Array<{ icon: string; value: string; label: string }> = [];
 
   // Look for tokens in state values
-  const tokensValue = stateValues["tokens"] || stateValues["totalTokens"] || stateValues["tokenCount"];
+  const tokensValue =
+    stateValues["tokens"] || stateValues["totalTokens"] || stateValues["tokenCount"];
   if (tokensValue) {
-    const tokenNum = typeof tokensValue.value === "number" 
-      ? tokensValue.value 
-      : parseInt(String(tokensValue.value), 10);
+    const tokenNum =
+      typeof tokensValue.value === "number"
+        ? tokensValue.value
+        : parseInt(String(tokensValue.value), 10);
     if (!isNaN(tokenNum)) {
       chips.push({
         icon: "🎟",
@@ -312,16 +318,12 @@ function renderVisualization(activity: ActivityState) {
   }
 }
 
-function renderProgressBar(
-  progress: number | null,
-  phase: string,
-  _data: Record<string, unknown>,
-) {
+function renderProgressBar(progress: number | null, phase: string, _data: Record<string, unknown>) {
   if (progress === null || progress === undefined) {
     return nothing;
   }
   const clampedProgress = Math.max(0, Math.min(100, progress));
-  
+
   return html`
     <div class="activity-panel__visualization">
       <div class="activity-progress">
@@ -348,10 +350,10 @@ function renderChecklist(data: Record<string, unknown>) {
   if (items.length === 0) {
     return nothing;
   }
-  
-  const doneCount = items.filter(i => i.done).length;
+
+  const doneCount = items.filter((i) => i.done).length;
   const totalCount = items.length;
-  
+
   return html`
     <div class="activity-panel__visualization">
       <div class="activity-checklist">
@@ -362,7 +364,13 @@ function renderChecklist(data: Record<string, unknown>) {
         ${items.map(
           (item) => html`
             <div class="activity-checklist__item ${item.done ? "activity-checklist__item--done" : ""}">
-              ${item.done ? icons.check : html`<span class="activity-checklist__dot"></span>`}
+              ${
+                item.done
+                  ? icons.check
+                  : html`
+                      <span class="activity-checklist__dot"></span>
+                    `
+              }
               <span>${item.label}</span>
             </div>
           `,
@@ -378,7 +386,7 @@ function renderTimeline(data: Record<string, unknown>) {
     status: "done" | "active" | "pending";
     description?: string;
   }>;
-  
+
   if (steps.length === 0) {
     return nothing;
   }
@@ -392,9 +400,11 @@ function renderTimeline(data: Record<string, unknown>) {
               <div class="activity-timeline__marker"></div>
               <div class="activity-timeline__content">
                 <div class="activity-timeline__label">${step.label}</div>
-                ${step.description
-                  ? html`<div class="activity-timeline__status">${step.description}</div>`
-                  : nothing}
+                ${
+                  step.description
+                    ? html`<div class="activity-timeline__status">${step.description}</div>`
+                    : nothing
+                }
               </div>
             </div>
           `,
@@ -435,9 +445,10 @@ function renderStateValues(stateValues: Record<string, StateValue>) {
   const values = Object.values(stateValues ?? {});
   // Filter out values we've already shown in metrics chips
   const filteredValues = values.filter(
-    (sv) => !["tokens", "totalTokens", "tokenCount", "model", "modelName", "status"].includes(sv.key)
+    (sv) =>
+      !["tokens", "totalTokens", "tokenCount", "model", "modelName", "status"].includes(sv.key),
   );
-  
+
   if (filteredValues.length === 0) {
     return nothing;
   }
@@ -488,9 +499,7 @@ function handleActionClick(
   props: ActivitiesProps,
 ) {
   if (action.confirmRequired) {
-    const confirmed = window.confirm(
-      `Are you sure you want to: ${action.description}?`,
-    );
+    const confirmed = window.confirm(`Are you sure you want to: ${action.description}?`);
     if (!confirmed) {
       return;
     }

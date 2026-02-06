@@ -54,25 +54,25 @@ Example: `agent:main:group:abc123`
 ```typescript
 interface GroupChatAgent {
   // Unique identifier within the group
-  agentHandle: string;  // e.g., "coder", "researcher", "pm"
-  
+  agentHandle: string; // e.g., "coder", "researcher", "pm"
+
   // Underlying agent configuration
-  agentId: string;  // The agent definition to use
-  
+  agentId: string; // The agent definition to use
+
   // Display information
   displayName: string;
   avatar?: string;
-  
+
   // Role in the group
   role: "primary" | "worker";
-  
+
   // Current status
   status: "idle" | "thinking" | "working" | "error";
-  
+
   // Active run information
   currentRunId?: string;
   currentTask?: string;
-  
+
   // Timestamps
   addedAt: number;
   lastActiveAt?: number;
@@ -81,13 +81,13 @@ interface GroupChatAgent {
 interface GroupChatSession {
   sessionKey: string;
   kind: "group";
-  
+
   // The primary agent (implicit, cannot be removed)
   primaryAgentHandle: string;
-  
+
   // All agents in the group
   agents: Record<string, GroupChatAgent>;
-  
+
   // Group metadata
   displayName: string;
   createdAt: number;
@@ -106,9 +106,9 @@ interface GroupChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
-  
+
   // Group chat extensions
-  fromAgent?: string;      // Which agent sent this (handle)
+  fromAgent?: string; // Which agent sent this (handle)
   targetAgents?: string[]; // @mentions for specific agents
   isCoordination?: boolean; // Agent-to-agent coordination message
 }
@@ -144,13 +144,13 @@ interface Command {
   keywords?: string[];
   section?: string;
   priority?: number;
-  
+
   // Action
   perform: () => void | Promise<void>;
-  
+
   // Conditional availability
   when?: () => boolean;
-  
+
   // Dynamic subcommands
   children?: () => Command[] | Promise<Command[]>;
 }
@@ -173,11 +173,12 @@ const commands: Command[] = [
     icon: "user-minus",
     section: "Agents",
     when: () => hasRemovableAgents(),
-    children: () => getRemovableAgents().map(agent => ({
-      id: `agent.remove.${agent.agentHandle}`,
-      name: `Remove @${agent.agentHandle}`,
-      perform: () => removeAgent(agent.agentHandle),
-    })),
+    children: () =>
+      getRemovableAgents().map((agent) => ({
+        id: `agent.remove.${agent.agentHandle}`,
+        name: `Remove @${agent.agentHandle}`,
+        perform: () => removeAgent(agent.agentHandle),
+      })),
   },
   // ... more commands
 ];
@@ -221,17 +222,17 @@ Extend the existing slash command system with group chat commands:
 
 #### New Slash Commands
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/agents` | List all agents in the current group | `/agents` |
-| `/agents add <agentId> [handle]` | Add an agent to the group | `/agents add researcher @research` |
-| `/agents remove <handle>` | Remove an agent from the group | `/agents remove @research` |
-| `/agents rename <handle> <newHandle>` | Rename an agent | `/agents rename @research @r` |
-| `/agents status` | Show status of all agents | `/agents status` |
-| `@<handle> <message>` | Send message to specific agent | `@coder implement the auth module` |
-| `@all <message>` | Broadcast to all agents | `@all stop current tasks` |
-| `/stop @<handle>` | Stop a specific agent | `/stop @coder` |
-| `/stop @all` | Stop all agents | `/stop @all` |
+| Command                               | Description                          | Example                            |
+| ------------------------------------- | ------------------------------------ | ---------------------------------- |
+| `/agents`                             | List all agents in the current group | `/agents`                          |
+| `/agents add <agentId> [handle]`      | Add an agent to the group            | `/agents add researcher @research` |
+| `/agents remove <handle>`             | Remove an agent from the group       | `/agents remove @research`         |
+| `/agents rename <handle> <newHandle>` | Rename an agent                      | `/agents rename @research @r`      |
+| `/agents status`                      | Show status of all agents            | `/agents status`                   |
+| `@<handle> <message>`                 | Send message to specific agent       | `@coder implement the auth module` |
+| `@all <message>`                      | Broadcast to all agents              | `@all stop current tasks`          |
+| `/stop @<handle>`                     | Stop a specific agent                | `/stop @coder`                     |
+| `/stop @all`                          | Stop all agents                      | `/stop @all`                       |
 
 ### 3. Chat UI Modifications
 
@@ -340,11 +341,11 @@ Worker agents in a group chat:
 
 ```typescript
 interface AgentRunContext {
-  sessionKey: string;        // Group session key
-  agentHandle: string;       // This agent's handle
-  targetedMessage?: string;  // The @mention that triggered this run
+  sessionKey: string; // Group session key
+  agentHandle: string; // This agent's handle
+  targetedMessage?: string; // The @mention that triggered this run
   fullTranscript: Message[]; // Shared conversation history
-  
+
   // Coordination helpers
   mentionAgent: (handle: string, message: string) => Promise<void>;
   reportStatus: (status: string) => Promise<void>;
@@ -470,39 +471,39 @@ New configuration options:
       groups: {
         // Maximum agents per group (excluding primary)
         maxAgents: 8,
-        
+
         // Default model for worker agents
-        workerModel: null,  // null = inherit from session
-        
+        workerModel: null, // null = inherit from session
+
         // Auto-archive completed group sessions after N minutes
         archiveAfterMinutes: 1440,
-      }
-    }
+      },
+    },
   },
-  
+
   ui: {
     commandPalette: {
       // Shortcut to open command palette
       shortcut: "$mod+k",
-      
+
       // Show command shortcuts in results
       showShortcuts: true,
-      
+
       // Maximum results to display
       maxResults: 10,
     },
-    
+
     groupChat: {
       // Show agent status bar
       showStatusBar: true,
-      
+
       // Show coordination messages between agents
       showCoordinationMessages: true,
-      
+
       // Enable @ mention autocomplete
       mentionAutocomplete: true,
-    }
-  }
+    },
+  },
 }
 ```
 

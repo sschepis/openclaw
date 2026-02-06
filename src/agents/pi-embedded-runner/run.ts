@@ -19,12 +19,7 @@ import {
   resolveContextWindowInfo,
 } from "../context-window-guard.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../defaults.js";
-import {
-  FailoverError,
-  resolveFailoverStatus,
-  coerceToFailoverError,
-  isFailoverError,
-} from "../failover-error.js";
+import { FailoverError, resolveFailoverStatus, coerceToFailoverError } from "../failover-error.js";
 import {
   ensureAuthProfileStore,
   getApiKeyForModel,

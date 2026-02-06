@@ -3,15 +3,18 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type { PropertyDefinition } from "../types";
 import {
   searchProperties,
   filterVisibleResults,
   expandParentsForMatches,
   splitByHighlights,
 } from "./search";
-import type { PropertyDefinition } from "../types";
 
-function createDef(pathKey: string, overrides: Partial<PropertyDefinition> = {}): PropertyDefinition {
+function createDef(
+  pathKey: string,
+  overrides: Partial<PropertyDefinition> = {},
+): PropertyDefinition {
   const path = pathKey.split(".");
   return {
     path,
@@ -53,10 +56,7 @@ describe("searchProperties", () => {
   });
 
   it("finds partial path matches", () => {
-    const defs = [
-      createDef("channels.telegram.token"),
-      createDef("settings.general"),
-    ];
+    const defs = [createDef("channels.telegram.token"), createDef("settings.general")];
     const results = searchProperties(defs, "tele");
 
     expect(results).toHaveLength(1);
@@ -65,10 +65,7 @@ describe("searchProperties", () => {
   });
 
   it("finds label matches", () => {
-    const defs = [
-      createDef("a.b", { label: "API Token" }),
-      createDef("c.d", { label: "Enabled" }),
-    ];
+    const defs = [createDef("a.b", { label: "API Token" }), createDef("c.d", { label: "Enabled" })];
     const results = searchProperties(defs, "api");
 
     expect(results).toHaveLength(1);
@@ -164,9 +161,7 @@ describe("filterVisibleResults", () => {
 
 describe("expandParentsForMatches", () => {
   it("expands parent paths for matched items", () => {
-    const defs = [
-      createDef("a.b.c.d", { depth: 3 }),
-    ];
+    const defs = [createDef("a.b.c.d", { depth: 3 })];
     const results = searchProperties(defs, "d");
     const currentExpanded = new Set<string>();
 
@@ -216,7 +211,10 @@ describe("splitByHighlights", () => {
   });
 
   it("handles multiple ranges", () => {
-    const parts = splitByHighlights("one two three", [[0, 3], [8, 13]]);
+    const parts = splitByHighlights("one two three", [
+      [0, 3],
+      [8, 13],
+    ]);
 
     expect(parts).toEqual([
       { text: "one", highlight: true },

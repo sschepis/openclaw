@@ -42,7 +42,7 @@ export async function deleteSecret(state: AppViewState, key: string) {
   if (state.secretsSaving) {
     return;
   }
-  
+
   if (!confirm(`Are you sure you want to delete secret "${key}"? This cannot be undone.`)) {
     return;
   }
@@ -75,7 +75,10 @@ export function closeSecretForm(state: AppViewState) {
   state.secretsError = null;
 }
 
-export function updateSecretForm(state: AppViewState, patch: Partial<{ key: string; value: string }>) {
+export function updateSecretForm(
+  state: AppViewState,
+  patch: Partial<{ key: string; value: string }>,
+) {
   if (!state.secretsForm) {
     return;
   }

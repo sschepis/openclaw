@@ -3,27 +3,32 @@
 ## Current Problems (From Screenshots)
 
 ### 1. **Summary Text is Unreadable**
+
 - Raw markdown content displayed as a wall of text
-- No truncation or "read more" functionality  
+- No truncation or "read more" functionality
 - Long summaries dominate the entire card
-- Markdown syntax (**, ##, ```) shown as raw text instead of rendered
+- Markdown syntax (\*\*, ##, ```) shown as raw text instead of rendered
 
 ### 2. **Lack of Visual Hierarchy**
+
 - No clear separation between activity cards
 - All information presented at the same visual weight
 - No distinction between critical info and supplementary details
 
 ### 3. **Missing Activity-Type-Specific UIs**
+
 - The `visualization` field supports: `progress-bar`, `file-tree`, `code-diff`, `checklist`, `timeline`, `metrics`, `conversation`, `generic`
 - Currently only `progress-bar`, `checklist`, and `metrics` have basic implementations
 - Most activities show no specialized visualization
 
 ### 4. **Poor Information Density**
+
 - Token usage, model info, and status are buried in text
 - Key metadata not surfaced prominently
 - No quick-scan capability for multiple activities
 
 ### 5. **Action Buttons Lack Context**
+
 - Actions are generic buttons without visual feedback
 - No loading states or progress indication
 - Confirm dialogs are native browser alerts
@@ -68,7 +73,9 @@
   background: var(--card);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .activity-panel:hover {
@@ -215,11 +222,13 @@
 ### Phase 2: Summary Rendering (High Priority)
 
 #### 2.1 Markdown-to-HTML Rendering
+
 - Parse markdown in summaries (headings, bold, code, lists)
 - Sanitize HTML output for security
 - Render inline code and code blocks with syntax highlighting
 
 #### 2.2 Smart Truncation
+
 - Show first 3 lines by default
 - "Show more" expands to full content
 - Track expanded/collapsed state per activity
@@ -230,17 +239,23 @@
 function renderSummary(summary: string, isExpanded: boolean, onToggle: () => void) {
   // Convert markdown to safe HTML
   const html = markdownToHtml(summary);
-  
+
   return html`
     <div class="activity-panel__summary-section">
-      <div class="activity-panel__summary ${isExpanded ? 'activity-panel__summary--expanded' : 'activity-panel__summary--collapsed'}">
+      <div
+        class="activity-panel__summary ${isExpanded
+          ? "activity-panel__summary--expanded"
+          : "activity-panel__summary--collapsed"}"
+      >
         ${unsafeHTML(html)}
       </div>
-      ${summary.length > 200 ? html`
-        <button class="activity-panel__toggle" @click=${onToggle}>
-          ${isExpanded ? 'Show less ▲' : 'Show more ▼'}
-        </button>
-      ` : nothing}
+      ${summary.length > 200
+        ? html`
+            <button class="activity-panel__toggle" @click=${onToggle}>
+              ${isExpanded ? "Show less ▲" : "Show more ▼"}
+            </button>
+          `
+        : nothing}
     </div>
   `;
 }
@@ -251,9 +266,11 @@ function renderSummary(summary: string, isExpanded: boolean, onToggle: () => voi
 ### Phase 3: Visualization Components (Medium Priority)
 
 #### 3.1 Task-Type Icons
+
 Map `taskType` to relevant emoji/icon:
+
 - `coding` → 💻 or code icon
-- `research` → 🔍 or search icon  
+- `research` → 🔍 or search icon
 - `writing` → ✍️ or pen icon
 - `analysis` → 📊 or chart icon
 - `conversation` → 💬 or chat icon
@@ -282,9 +299,9 @@ function renderProgressBar(progress: number, phase: string) {
 
 ```typescript
 function renderChecklist(items: { label: string; done: boolean }[]) {
-  const done = items.filter(i => i.done).length;
+  const done = items.filter((i) => i.done).length;
   const total = items.length;
-  
+
   return html`
     <div class="activity-checklist-enhanced">
       <div class="activity-checklist-enhanced__header">
@@ -292,12 +309,14 @@ function renderChecklist(items: { label: string; done: boolean }[]) {
         <span class="activity-checklist-enhanced__count">${done}/${total}</span>
       </div>
       <div class="activity-checklist-enhanced__items">
-        ${items.map(item => html`
-          <div class="activity-checklist-enhanced__item ${item.done ? 'done' : ''}">
-            ${item.done ? icons.checkCircle : icons.circle}
-            <span>${item.label}</span>
-          </div>
-        `)}
+        ${items.map(
+          (item) => html`
+            <div class="activity-checklist-enhanced__item ${item.done ? "done" : ""}">
+              ${item.done ? icons.checkCircle : icons.circle}
+              <span>${item.label}</span>
+            </div>
+          `,
+        )}
       </div>
     </div>
   `;
@@ -307,9 +326,10 @@ function renderChecklist(items: { label: string; done: boolean }[]) {
 #### 3.4 Timeline Visualization (New)
 
 For activities that have phases/steps:
+
 ```
 ● Step 1: Analyzing requirements      ✓ Complete
-○ Step 2: Implementing core logic     ⏳ In progress  
+○ Step 2: Implementing core logic     ⏳ In progress
 ○ Step 3: Writing tests               ○ Pending
 ○ Step 4: Documentation               ○ Pending
 ```
@@ -317,6 +337,7 @@ For activities that have phases/steps:
 #### 3.5 Code Diff Visualization (New)
 
 For coding tasks, show:
+
 - Files modified (collapsible)
 - Line counts (+added, -removed)
 - Quick preview of changes
@@ -324,6 +345,7 @@ For coding tasks, show:
 #### 3.6 File Tree Visualization (New)
 
 For file-related activities:
+
 ```
 📁 project/
   ├── 📄 src/main.ts (modified)
@@ -337,8 +359,10 @@ For file-related activities:
 ### Phase 4: Metrics Display (Medium Priority)
 
 #### 4.1 Key Metrics Chips
+
 Extract and display prominently:
-- **Tokens Used**: Format as "104k tokens" 
+
+- **Tokens Used**: Format as "104k tokens"
 - **Model**: Show as "gemini-3-pro"
 - **Status**: Visual indicator (active/paused/idle)
 - **Duration**: Time since start or last update
@@ -349,17 +373,21 @@ Extract and display prominently:
 function renderTokenUsage(tokens: number, contextLimit?: number) {
   const formattedTokens = formatNumber(tokens); // "104,107" or "104k"
   const percentage = contextLimit ? (tokens / contextLimit) * 100 : null;
-  
+
   return html`
     <div class="activity-tokens">
       <span class="activity-tokens__value">${formattedTokens}</span>
       <span class="activity-tokens__label">tokens</span>
-      ${percentage !== null ? html`
-        <div class="activity-tokens__bar">
-          <div class="activity-tokens__fill ${percentage > 80 ? 'warning' : ''}" 
-               style="width: ${Math.min(percentage, 100)}%"></div>
-        </div>
-      ` : nothing}
+      ${percentage !== null
+        ? html`
+            <div class="activity-tokens__bar">
+              <div
+                class="activity-tokens__fill ${percentage > 80 ? "warning" : ""}"
+                style="width: ${Math.min(percentage, 100)}%"
+              ></div>
+            </div>
+          `
+        : nothing}
     </div>
   `;
 }
@@ -370,6 +398,7 @@ function renderTokenUsage(tokens: number, contextLimit?: number) {
 ### Phase 5: Actions & Interactions (Medium Priority)
 
 #### 5.1 Custom Confirm Dialog
+
 Replace `window.confirm()` with styled modal:
 
 ```typescript
@@ -394,11 +423,13 @@ function renderConfirmDialog(action: ActivityAction, onConfirm: () => void, onCa
 ```
 
 #### 5.2 Action Button States
+
 - Loading spinner when action is executing
 - Disabled state during execution
 - Success/error feedback after completion
 
 #### 5.3 Quick Actions
+
 - "Copy summary" button
 - "Export to markdown" button
 - Keyboard shortcuts for common actions
@@ -425,11 +456,13 @@ function renderConfirmDialog(action: ActivityAction, onConfirm: () => void, onCa
 ```
 
 #### 6.2 Card Size Variations
+
 - Compact mode for list view
 - Expanded mode for detail view
 - Option to switch between views
 
 #### 6.3 Sorting & Filtering
+
 - Sort by: Updated time, Task type, Status
 - Filter by: Active only, Task type
 
@@ -449,9 +482,9 @@ export type ActivitiesProps = {
   onAction: (sessionKey: string, actionId: string, params?: Record<string, unknown>) => void;
   onOpenChat: (sessionKey: string) => void;
   // New props
-  expandedSummaries: Set<string>;  // Track which summaries are expanded
+  expandedSummaries: Set<string>; // Track which summaries are expanded
   onToggleSummary: (sessionKey: string) => void;
-  actionInProgress: Map<string, string>;  // sessionKey -> actionId
+  actionInProgress: Map<string, string>; // sessionKey -> actionId
   confirmDialog: { sessionKey: string; action: ActivityAction } | null;
   onConfirmAction: () => void;
   onCancelAction: () => void;
@@ -463,24 +496,28 @@ export type ActivitiesProps = {
 ## Implementation Priorities
 
 ### Sprint 1 (Immediate - 1-2 days)
+
 1. ✅ Card structure redesign with header/body/actions sections
 2. ✅ Summary truncation with expand/collapse
 3. ✅ Task-type icons
 4. ✅ CSS styling for new layout
 
 ### Sprint 2 (Short-term - 2-3 days)
+
 1. Markdown rendering for summaries
 2. Enhanced metrics display (token chips)
 3. Improved progress bar
 4. Status badge styling
 
 ### Sprint 3 (Medium-term - 3-5 days)
+
 1. Enhanced checklist component
 2. Timeline visualization
 3. Custom confirm dialog
 4. Action loading states
 
 ### Sprint 4 (Longer-term)
+
 1. File tree visualization
 2. Code diff preview
 3. Sorting and filtering

@@ -7,7 +7,7 @@ import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exe
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
 import type { Tab } from "./navigation";
 import type { ResolvedTheme, ThemeMode } from "./theme";
-import type { ActionMessage } from "./types/chat-types";
+import type { ActionMessage, TaskRecommendation } from "./types/chat-types";
 import type {
   ActivitiesListResult,
   AgentsListResult,
@@ -49,7 +49,7 @@ import {
   handleRerunFromMessage as handleRerunFromMessageInternal,
   handleEditMessage as handleEditMessageInternal,
 } from "./app-chat";
-import { callDebugMethod } from "./controllers/debug";
+
 import { DEFAULT_CRON_FORM, DEFAULT_LOG_LEVEL_FILTERS } from "./app-defaults";
 import { connectGateway as connectGatewayInternal } from "./app-gateway";
 import {
@@ -88,7 +88,17 @@ import {
   handleNewSession as handleNewSessionInternal,
   handleExportSession as handleExportSessionInternal,
   handleSessionsPatch as handleSessionsPatchInternal,
+  spawnSession as spawnSessionInternal,
+  spawnBlankSession as spawnBlankSessionInternal,
+  spawnCloneSession as spawnCloneSessionInternal,
+  type SpawnSessionOptions,
+  type SpawnSessionResult,
 } from "./app-sessions";
+import {
+  initiateDeleteSession,
+  executeDeleteSession,
+  cancelDeleteSession,
+} from "./controllers/sessions";
 import {
   handleToggleMic as handleToggleMicInternal,
   handleSpeak as handleSpeakInternal,
@@ -100,6 +110,7 @@ import {
   handleOpenSidebar as handleOpenSidebarInternal,
   handleCloseSidebar as handleCloseSidebarInternal,
   handleSplitRatioChange as handleSplitRatioChangeInternal,
+  handleNavResize as handleNavResizeInternal,
   handleGatewayUrlConfirm as handleGatewayUrlConfirmInternal,
   handleGatewayUrlCancel as handleGatewayUrlCancelInternal,
   handleExecApprovalDecision as handleExecApprovalDecisionInternal,
@@ -176,6 +187,7 @@ export class OpenClawApp extends LitElement {
   @state() chatQueue: ChatQueueItem[] = [];
   @state() chatAttachments: ChatAttachment[] = [];
   @state() chatActionMessages: ActionMessage[] = [];
+  @state() chatRecommendations: TaskRecommendation[] = [];
   @state() mobileSessionsOpen = false;
   @state() sessionSearchQuery = "";
   // Sidebar state for tool output viewing
@@ -185,6 +197,16 @@ export class OpenClawApp extends LitElement {
   @state() splitRatio = this.settings.splitRatio;
   @state() isListening = false;
   @state() settingsOpen = false;
+  /** Tracks which expandable nav items are currently expanded */
+  @state() navExpandedTabs: Set<string> = new Set(["chat"]);
+  /** Command palette open state */
+  @state() commandPaletteOpen = false;
+  /** Slash autocomplete open state */
+  @state() slashAutocompleteOpen = false;
+  /** Slash autocomplete mode (slash commands or agent mentions) */
+  @state() slashAutocompleteMode: "slash" | "mention" = "slash";
+  /** Slash autocomplete query (text after / or @) */
+  @state() slashAutocompleteQuery = "";
 
   @state() nodesLoading = false;
   @state() nodes: Array<Record<string, unknown>> = [];
@@ -221,7 +243,8 @@ export class OpenClawApp extends LitElement {
   @state() configForm: Record<string, unknown> | null = null;
   @state() configFormOriginal: Record<string, unknown> | null = null;
   @state() configFormDirty = false;
-  @state() configFormMode: "form" | "raw" = "form";
+  @state() configFormMode: "form" | "raw" | "grid" = "grid";
+  @state() configExpandedPaths: Set<string> = new Set();
   @state() configSearchQuery = "";
   @state() configActiveSection: string | null = null;
   @state() configActiveSubsection: string | null = null;
@@ -257,6 +280,7 @@ export class OpenClawApp extends LitElement {
   @state() sessionsFilterLimit = "120";
   @state() sessionsIncludeGlobal = true;
   @state() sessionsIncludeUnknown = false;
+  @state() sessionDeleteConfirm: import("./ui-types").SessionDeleteConfirmState | null = null;
 
   @state() activitiesLoading = false;
   @state() activitiesList: ActivitiesListResult | null = null;
@@ -559,6 +583,17 @@ export class OpenClawApp extends LitElement {
     this.channelsExpandedChannel = this.channelsExpandedChannel === key ? null : key;
   }
 
+  /** Toggle expansion state for config property grid */
+  handleConfigExpandToggle(pathKey: string) {
+    const next = new Set(this.configExpandedPaths);
+    if (next.has(pathKey)) {
+      next.delete(pathKey);
+    } else {
+      next.add(pathKey);
+    }
+    this.configExpandedPaths = next;
+  }
+
   /** Toggle health debug panel */
   handleHealthDebugToggle() {
     this.channelsShowHealthDebug = !this.channelsShowHealthDebug;
@@ -587,6 +622,10 @@ export class OpenClawApp extends LitElement {
 
   handleSplitRatioChange(ratio: number) {
     handleSplitRatioChangeInternal(this, ratio);
+  }
+
+  handleNavResize(width: number) {
+    handleNavResizeInternal(this, width);
   }
 
   handleChatSelectQueueItem(id: string) {
@@ -662,6 +701,112 @@ export class OpenClawApp extends LitElement {
       description: `Session renamed to "${newName}"`,
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Initiate session delete confirmation (opens modal with child sessions).
+   */
+  async handleDeleteSessionConfirm(key: string) {
+    await initiateDeleteSession(this as any, key);
+  }
+
+  /**
+   * Execute session deletion (parent + all children).
+   */
+  async handleDeleteSessionExecute() {
+    await executeDeleteSession(this as any);
+  }
+
+  /**
+   * Cancel session deletion and close modal.
+   */
+  handleDeleteSessionCancel() {
+    cancelDeleteSession(this as any);
+  }
+
+  /**
+   * Toggle expanded state for a nav item with sub-items (e.g., chat sessions, channels).
+   */
+  handleNavExpandToggle(tab: string) {
+    const next = new Set(this.navExpandedTabs);
+    if (next.has(tab)) {
+      next.delete(tab);
+    } else {
+      next.add(tab);
+    }
+    this.navExpandedTabs = next;
+  }
+
+  /**
+   * Spawns a new session with the given options.
+   * By default, creates a blank session in the background without switching focus.
+   *
+   * @param options - Options for spawning the session
+   * @returns Result of the spawn operation
+   */
+  async spawnSession(options?: SpawnSessionOptions): Promise<SpawnSessionResult> {
+    return spawnSessionInternal(this, options);
+  }
+
+  /**
+   * Spawns a blank session (convenience method).
+   * By default, creates in the background without switching focus.
+   */
+  async spawnBlankSession(options?: { switchFocus?: boolean; displayName?: string }): Promise<SpawnSessionResult> {
+    return spawnBlankSessionInternal(this, options);
+  }
+
+  /**
+   * Spawns a clone of the current or specified session (convenience method).
+   * By default, creates in the background without switching focus.
+   */
+  async spawnCloneSession(
+    options?: { sourceSessionKey?: string; switchFocus?: boolean; displayName?: string },
+  ): Promise<SpawnSessionResult> {
+    return spawnCloneSessionInternal(this, options);
+  }
+
+  /**
+   * Toggle command palette open/close.
+   */
+  handleToggleCommandPalette() {
+    this.commandPaletteOpen = !this.commandPaletteOpen;
+  }
+
+  /**
+   * Close command palette.
+   */
+  handleCloseCommandPalette() {
+    this.commandPaletteOpen = false;
+  }
+
+  /**
+   * Handle slash autocomplete selection.
+   */
+  handleSlashAutocompleteSelect(suggestion: unknown) {
+    const s = suggestion as { type: string; command?: { name: string }; agent?: { name: string } };
+    if (s.type === "command" && s.command) {
+      // Replace the current draft with the full command
+      this.chatMessage = `/${s.command.name} `;
+    } else if (s.type === "agent" && s.agent) {
+      // Insert the @ mention into the draft
+      const atIndex = this.chatMessage.lastIndexOf("@");
+      if (atIndex !== -1) {
+        this.chatMessage = this.chatMessage.slice(0, atIndex) + `@${s.agent.name} `;
+      } else {
+        this.chatMessage = `@${s.agent.name} `;
+      }
+    }
+    this.slashAutocompleteOpen = false;
+    this.slashAutocompleteQuery = "";
+  }
+
+  /**
+   * Close slash autocomplete.
+   */
+  handleSlashAutocompleteClose() {
+    this.slashAutocompleteOpen = false;
+    this.slashAutocompleteQuery = "";
   }
 
   render() {

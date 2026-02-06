@@ -371,7 +371,7 @@ export function renderConfigForm(props: ConfigFormProps) {
   const activeSection = props.activeSection;
   const activeSubsection = props.activeSubsection ?? null;
 
-  const entries = (Object.entries(properties) as [string, JsonSchema][]).slice().sort((a: [string, JsonSchema], b: [string, JsonSchema]) => {
+  const entries = Object.entries(properties).toSorted((a, b) => {
     const orderA = hintForPath([a[0]], props.uiHints)?.order ?? 50;
     const orderB = hintForPath([b[0]], props.uiHints)?.order ?? 50;
     if (orderA !== orderB) {

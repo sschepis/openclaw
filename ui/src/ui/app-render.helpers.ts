@@ -1,14 +1,16 @@
-import { html } from "lit";
+import { html, nothing } from "lit";
 import { repeat } from "lit/directives/repeat.js";
 import type { AppViewState } from "./app-view-state";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
-import type { SessionsListResult } from "./types";
+import type { GatewaySessionRow, SessionsListResult, GLOBAL_SESSION_KEY, GLOBAL_SESSION_DISPLAY_NAME } from "./types";
+import { GLOBAL_SESSION_KEY as GLOBAL_KEY, GLOBAL_SESSION_DISPLAY_NAME as GLOBAL_NAME } from "./types";
 import { refreshChat } from "./app-chat";
 import { syncUrlWithSessionKey } from "./app-settings";
 import { loadChatHistory } from "./controllers/chat";
+import { formatAgo } from "./format";
 import { icons } from "./icons";
-import { iconForTab, pathForTab, titleForTab, type Tab } from "./navigation";
+import { iconForTab, pathForTab, titleForTab, isExpandableTab, EXPANDABLE_TAB_CONFIG, type Tab, type ExpandableTab } from "./navigation";
 
 export function renderTab(state: AppViewState, tab: Tab) {
   const href = pathForTab(tab, state.basePath);
@@ -345,4 +347,258 @@ function renderMonitorIcon() {
       <line x1="12" x2="12" y1="17" y2="21"></line>
     </svg>
   `;
+}
+
+/**
+ * Renders an expandable nav item for tabs that have sub-items (e.g., chat sessions).
+ */
+export function renderExpandableTab(state: AppViewState, tab: Tab) {
+  if (!isExpandableTab(tab)) {
+    return renderTab(state, tab);
+  }
+
+  const config = EXPANDABLE_TAB_CONFIG[tab];
+  const isExpanded = state.navExpandedTabs.has(tab);
+  const isActive = state.tab === tab;
+  const href = pathForTab(tab, state.basePath);
+
+  // Get sub-items based on tab type
+  const subItems = getSubItemsForTab(state, tab);
+  const visibleItems = subItems.slice(0, config.maxVisibleItems);
+  const hasMore = subItems.length > config.maxVisibleItems;
+
+  const handleTabClick = (event: MouseEvent) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    state.setTab(tab);
+  };
+
+  const handleExpandClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    state.handleNavExpandToggle(tab);
+  };
+
+  const handleAddClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleAddAction(state, tab);
+  };
+
+  return html`
+    <div class="nav-item-expandable ${isExpanded ? "nav-item-expandable--expanded" : ""} ${isActive ? "nav-item-expandable--active" : ""}">
+      <div class="nav-item-expandable__header">
+        <a
+          href=${href}
+          class="nav-item ${isActive ? "active" : ""}"
+          @click=${handleTabClick}
+          title=${titleForTab(tab)}
+        >
+          <span class="nav-item__icon" aria-hidden="true">${icons[iconForTab(tab)]}</span>
+          <span class="nav-item__text">${titleForTab(tab)}</span>
+        </a>
+        <div class="nav-item-expandable__actions">
+          ${config.hasAddButton ? html`
+            <button
+              class="nav-item-expandable__add"
+              @click=${handleAddClick}
+              title="Add new"
+              aria-label="Add new ${titleForTab(tab).toLowerCase()}"
+            >
+              ${icons.plus}
+            </button>
+          ` : nothing}
+          <button
+            class="nav-item-expandable__toggle"
+            @click=${handleExpandClick}
+            aria-expanded=${isExpanded}
+            title=${isExpanded ? "Collapse" : "Expand"}
+          >
+            <span class="nav-item-expandable__chevron">${isExpanded ? "▼" : "▶"}</span>
+          </button>
+        </div>
+      </div>
+      ${isExpanded && subItems.length > 0 ? html`
+        <div class="nav-subitems">
+          ${visibleItems.map((item) => renderSubItem(state, tab, item))}
+          ${hasMore ? html`
+            <a
+              href=${href}
+              class="nav-subitem nav-subitem--more"
+              @click=${handleTabClick}
+            >
+              <span class="nav-subitem__text">${config.showMoreLabel} (${subItems.length - config.maxVisibleItems} more)</span>
+            </a>
+          ` : nothing}
+        </div>
+      ` : nothing}
+    </div>
+  `;
+}
+
+/**
+ * Get sub-items for a given expandable tab.
+ * Currently only Chat is expandable - it shows sessions as sub-items,
+ * replacing the need for a secondary sidebar.
+ */
+function getSubItemsForTab(state: AppViewState, tab: ExpandableTab): SubItem[] {
+  switch (tab) {
+    case "chat":
+      return getChatSessionSubItems(state);
+    default:
+      return [];
+  }
+}
+
+type SubItem = {
+  key: string;
+  label: string;
+  sublabel?: string;
+  active: boolean;
+  status?: "ok" | "warning" | "error" | "inactive";
+  /** If true, this item cannot be deleted (e.g., the Global session) */
+  protected?: boolean;
+  /** If true, this is the Global session with cross-session visibility */
+  isGlobal?: boolean;
+};
+
+function getChatSessionSubItems(state: AppViewState): SubItem[] {
+  const sessions = state.sessionsResult?.sessions ?? [];
+  
+  // Find the Global session if it exists, or create a placeholder
+  const globalSession = sessions.find((s) => s.key === GLOBAL_KEY || s.kind === "global");
+  
+  // Filter to regular chat-type sessions (non-global) and sort by most recent
+  const chatSessions = sessions
+    .filter((s) => s.key !== GLOBAL_KEY && s.kind !== "global")
+    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  
+  // Build the result array with Global session always first
+  const result: SubItem[] = [];
+  
+  // Always add Global session first (even if not in server response)
+  result.push({
+    key: GLOBAL_KEY,
+    label: GLOBAL_NAME,
+    sublabel: globalSession?.updatedAt ? formatAgo(globalSession.updatedAt) : "Cross-session view",
+    active: state.sessionKey === GLOBAL_KEY,
+    protected: true,
+    isGlobal: true,
+  });
+  
+  // Add remaining sessions
+  for (const session of chatSessions) {
+    result.push({
+      key: session.key,
+      label: session.displayName ?? session.key,
+      sublabel: session.updatedAt ? formatAgo(session.updatedAt) : undefined,
+      active: session.key === state.sessionKey,
+    });
+  }
+  
+  return result;
+}
+
+/**
+ * Render a sub-item in the navigation.
+ */
+function renderSubItem(state: AppViewState, tab: ExpandableTab, item: SubItem) {
+  const handleClick = (event: MouseEvent) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    handleSubItemClick(state, tab, item.key);
+  };
+
+  const handleDeleteClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (tab === "chat" && !item.protected) {
+      void state.handleDeleteSessionConfirm(item.key);
+    }
+  };
+
+  const statusClass = item.status ? `nav-subitem--${item.status}` : "";
+  const globalClass = item.isGlobal ? "nav-subitem--global" : "";
+
+  // Show delete button for non-protected items in chat tab
+  const canDelete = tab === "chat" && !item.protected;
+
+  return html`
+    <div class="nav-subitem-wrapper">
+      <button
+        class="nav-subitem ${item.active ? "nav-subitem--active" : ""} ${statusClass} ${globalClass}"
+        @click=${handleClick}
+        title=${item.isGlobal ? `${item.label} - View all session histories` : item.label}
+      >
+        ${item.isGlobal ? html`<span class="nav-subitem__global-icon" aria-hidden="true">${icons.globe}</span>` : nothing}
+        ${item.status ? html`<span class="nav-subitem__status" aria-hidden="true"></span>` : nothing}
+        <span class="nav-subitem__text">${item.label}</span>
+        ${item.sublabel ? html`<span class="nav-subitem__sublabel">${item.sublabel}</span>` : nothing}
+      </button>
+      ${canDelete ? html`
+        <button
+          class="nav-subitem__delete"
+          @click=${handleDeleteClick}
+          title="Delete session"
+          aria-label="Delete ${item.label}"
+        >
+          ${icons.trash}
+        </button>
+      ` : nothing}
+    </div>
+  `;
+}
+
+/**
+ * Handle clicking on a sub-item.
+ * Currently only "chat" is expandable, so we switch to the selected session.
+ */
+function handleSubItemClick(state: AppViewState, _tab: ExpandableTab, key: string) {
+  // Switch to this chat session
+  state.sessionKey = key;
+  state.chatMessage = "";
+  state.chatAttachments = [];
+  state.chatStream = null;
+  state.chatStreamStartedAt = null;
+  state.chatRunId = null;
+  state.chatMessages = [];
+  state.chatRecommendations = [];
+  state.chatLoading = true;
+  state.resetToolStream();
+  state.resetChatScroll();
+  state.applySettings({
+    ...state.settings,
+    sessionKey: key,
+    lastActiveSessionKey: key,
+  });
+  void state.loadAssistantIdentity();
+  void loadChatHistory(state);
+  void refreshChat(state);
+  state.setTab("chat");
+}
+
+/**
+ * Handle the add button click for an expandable tab.
+ * Currently only "chat" is expandable, so we create a new session.
+ */
+function handleAddAction(state: AppViewState, _tab: ExpandableTab) {
+  void state.handleNewSession();
 }

@@ -484,10 +484,10 @@ function renderObject(params: {
       ? (fallback as Record<string, unknown>)
       : {};
   const props = schema.properties ?? {};
-  const entries = Object.entries(props) as [string, JsonSchema][];
+  const entries = Object.entries(props);
 
   // Sort by hint order
-  const sorted = entries.slice().sort((a: [string, JsonSchema], b: [string, JsonSchema]) => {
+  const sorted = entries.toSorted((a, b) => {
     const orderA = hintForPath([...path, a[0]], hints)?.order ?? 0;
     const orderB = hintForPath([...path, b[0]], hints)?.order ?? 0;
     if (orderA !== orderB) {

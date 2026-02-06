@@ -22,7 +22,7 @@ export type NodesProps = {
   configLoading: boolean;
   configSaving: boolean;
   configDirty: boolean;
-  configFormMode: "form" | "raw";
+  configFormMode: "form" | "raw" | "grid";
   execApprovalsLoading: boolean;
   execApprovalsSaving: boolean;
   execApprovalsDirty: boolean;
@@ -243,7 +243,7 @@ type BindingState = {
   onBindAgent: (agentIndex: number, nodeId: string | null) => void;
   onSave: () => void;
   onLoadConfig: () => void;
-  formMode: "form" | "raw";
+  formMode: "form" | "raw" | "grid";
 };
 
 type ExecSecurity = "deny" | "allowlist" | "full";

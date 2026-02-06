@@ -574,7 +574,9 @@ export async function runTui(opts: TuiOptions) {
   editor.onSubmit = (text) => {
     if (pendingSecretId) {
       const value = text.trim();
-      if (!value) return;
+      if (!value) {
+        return;
+      }
 
       client
         .call("secrets.resolve", { id: pendingSecretId, value })

@@ -102,6 +102,11 @@ export function handleSplitRatioChange(app: App, ratio: number) {
   app.applySettings({ ...app.settings, splitRatio: newRatio });
 }
 
+export function handleNavResize(app: App, width: number) {
+  const newWidth = Math.max(160, Math.min(400, width));
+  app.applySettings({ ...app.settings, navWidth: newWidth });
+}
+
 export function handleChatSelectQueueItem(app: App, id: string) {
   // No-op for now
 }

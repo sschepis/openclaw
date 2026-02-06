@@ -2,9 +2,10 @@ import { html, nothing } from "lit";
 import type { AppViewState } from "./app-view-state";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { refreshChatAvatar } from "./app-chat";
-import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers";
+import { renderChatControls, renderTab, renderExpandableTab, renderThemeToggle } from "./app-render.helpers";
+import "./components/command-palette/command-palette";
 import { loadChannels } from "./controllers/channels";
-import { fetchRecommendations, loadChatHistory } from "./controllers/chat";
+import { loadChatHistory } from "./controllers/chat";
 import {
   applyConfig,
   loadConfig,
@@ -54,7 +55,7 @@ import {
   updateSkillEnabled,
 } from "./controllers/skills";
 import { icons } from "./icons";
-import { TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation";
+import { TAB_GROUPS, subtitleForTab, titleForTab, isExpandableTab } from "./navigation";
 import { loadActivities } from "./controllers/activities";
 import { renderActivities } from "./views/activities";
 import { renderChannels } from "./views/channels";
@@ -65,6 +66,7 @@ import { renderSecrets } from "./views/secrets";
 import { renderDebug } from "./views/debug";
 import { renderExecApprovalPrompt } from "./views/exec-approval";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation";
+import { renderSessionDeleteConfirm } from "./views/session-delete-confirm";
 import { renderInstances } from "./views/instances";
 import { renderLogs } from "./views/logs";
 import { renderNodes } from "./views/nodes";
@@ -75,6 +77,43 @@ import { renderChatSettings } from "./views/chat-settings";
 
 const AVATAR_DATA_RE = /^data:/i;
 const AVATAR_HTTP_RE = /^https?:\/\//i;
+
+/**
+ * Update slash autocomplete state based on current draft input.
+ * Detects:
+ * - "/" at the start of the message (slash commands)
+ * - "@" anywhere in the message (agent mentions)
+ */
+function updateSlashAutocompleteState(state: AppViewState, draft: string) {
+  // Check for slash command at start of message
+  if (draft.startsWith("/")) {
+    const query = draft.slice(1).split(/\s/)[0]; // Get text after / until whitespace
+    if (draft.indexOf(" ") === -1 || draft.indexOf(" ") > draft.indexOf("/") + query.length) {
+      state.slashAutocompleteOpen = true;
+      state.slashAutocompleteMode = "slash";
+      state.slashAutocompleteQuery = query;
+      return;
+    }
+  }
+
+  // Check for @ mention (find the last @ that's being typed)
+  const lastAtIndex = draft.lastIndexOf("@");
+  if (lastAtIndex >= 0) {
+    // Check if we're in the middle of typing an @ mention
+    const textAfterAt = draft.slice(lastAtIndex + 1);
+    // Only show if no space after the @ (still typing the mention)
+    if (!textAfterAt.includes(" ")) {
+      state.slashAutocompleteOpen = true;
+      state.slashAutocompleteMode = "mention";
+      state.slashAutocompleteQuery = textAfterAt;
+      return;
+    }
+  }
+
+  // No autocomplete trigger found, close it
+  state.slashAutocompleteOpen = false;
+  state.slashAutocompleteQuery = "";
+}
 
 function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
   const list = state.agentsList?.agents ?? [];
@@ -102,10 +141,13 @@ export function renderApp(state: AppViewState) {
   const showThinking = state.onboarding ? false : state.settings.chatShowThinking;
   const assistantAvatarUrl = resolveAssistantAvatarUrl(state);
   const chatAvatarUrl = state.chatAvatarUrl ?? assistantAvatarUrl ?? null;
-  const brandIconUrl = state.basePath ? `${state.basePath}/favicon.svg` : "/favicon.svg";
+  const navWidth = state.settings.navWidth ?? 220;
 
   return html`
-    <div class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${state.settings.navCollapsed ? "shell--nav-collapsed" : ""} ${state.onboarding ? "shell--onboarding" : ""}">
+    <div
+      class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${state.settings.navCollapsed ? "shell--nav-collapsed" : ""} ${state.onboarding ? "shell--onboarding" : ""}"
+      style="--shell-nav-width: ${navWidth}px"
+    >
       <header class="topbar">
         <div class="topbar-left">
           <button
@@ -122,7 +164,7 @@ export function renderApp(state: AppViewState) {
           </button>
           <div class="brand">
             <div class="brand-logo">
-              <img src="${brandIconUrl}" alt="OpenClaw" />
+              ${icons.openclaw}
             </div>
             <div class="brand-text">
               <div class="brand-title">OPENCLAW</div>
@@ -161,7 +203,11 @@ export function renderApp(state: AppViewState) {
                 <span class="nav-label__chevron">${isGroupCollapsed ? "+" : "−"}</span>
               </button>
               <div class="nav-group__items">
-                ${group.tabs.map((tab) => renderTab(state, tab))}
+                ${group.tabs.map((tab) =>
+                  isExpandableTab(tab)
+                    ? renderExpandableTab(state, tab)
+                    : renderTab(state, tab)
+                )}
               </div>
             </div>
           `;
@@ -184,6 +230,30 @@ export function renderApp(state: AppViewState) {
           </div>
         </div>
       </aside>
+      <div
+        class="shell-resizer"
+        @mousedown=${(e: MouseEvent) => {
+          e.preventDefault();
+          const startX = e.clientX;
+          const startWidth = navWidth;
+          const shell = (e.target as HTMLElement).closest(".shell");
+          shell?.classList.add("shell--resizing");
+
+          const onMove = (moveEvent: MouseEvent) => {
+            const delta = moveEvent.clientX - startX;
+            state.handleNavResize(startWidth + delta);
+          };
+
+          const onUp = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            shell?.classList.remove("shell--resizing");
+          };
+
+          window.addEventListener("mousemove", onMove);
+          window.addEventListener("mouseup", onUp);
+        }}
+      ></div>
       <main class="content ${isChat ? "content--chat" : ""}">
         <section class="content-header">
           <div>
@@ -497,9 +567,10 @@ export function renderApp(state: AppViewState) {
                   state.chatStreamStartedAt = null;
                   state.chatRunId = null;
                   state.chatQueue = [];
-                  // Clear messages BEFORE loading history to ensure the new session's
-                  // messages are loaded correctly (prevents stale message count check)
+                  // Clear messages and recommendations BEFORE loading history to ensure
+                  // the new session's state is loaded correctly
                   state.chatMessages = [];
+                  state.chatRecommendations = [];
                   state.chatLoading = true;
                   state.resetToolStream();
                   state.resetChatScroll();
@@ -511,7 +582,7 @@ export function renderApp(state: AppViewState) {
                   void state.loadAssistantIdentity();
                   void loadChatHistory(state);
                   void refreshChatAvatar(state);
-                  void fetchRecommendations(state);
+                  // Note: recommendations are fetched after loadChatHistory completes (in the controller)
                 },
                 thinkingLevel: state.chatThinkingLevel,
                 showThinking,
@@ -536,10 +607,10 @@ export function renderApp(state: AppViewState) {
                 recommendations: state.chatRecommendations,
                 onRefresh: () => {
                   state.resetToolStream();
+                  // Recommendations are refreshed after loadChatHistory completes (in the controller)
                   return Promise.all([
                     loadChatHistory(state),
                     refreshChatAvatar(state),
-                    fetchRecommendations(state),
                   ]);
                 },
                 onToggleFocusMode: () => {
@@ -552,7 +623,11 @@ export function renderApp(state: AppViewState) {
                   });
                 },
                 onChatScroll: (event) => state.handleChatScroll(event),
-                onDraftChange: (next) => (state.chatMessage = next),
+                onDraftChange: (next) => {
+                  state.chatMessage = next;
+                  // Detect slash commands and @ mentions for autocomplete
+                  updateSlashAutocompleteState(state, next);
+                },
                 attachments: state.chatAttachments,
                 onAttachmentsChange: (next) => (state.chatAttachments = next),
                 onSend: () => state.handleSendChat(),
@@ -593,6 +668,14 @@ export function renderApp(state: AppViewState) {
                 onSplitRatioChange: (ratio: number) => state.handleSplitRatioChange(ratio),
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
+                // Slash autocomplete props
+                slashAutocompleteOpen: state.slashAutocompleteOpen,
+                slashAutocompleteMode: state.slashAutocompleteMode,
+                slashAutocompleteQuery: state.slashAutocompleteQuery,
+                slashAutocompleteAgents: [], // TODO: populate from group chat agents
+                isGroupChat: false, // TODO: determine from session type
+                onSlashAutocompleteSelect: (suggestion: any) => state.handleSlashAutocompleteSelect(suggestion),
+                onSlashAutocompleteClose: () => state.handleSlashAutocompleteClose(),
               })
             : nothing
         }
@@ -618,6 +701,7 @@ export function renderApp(state: AppViewState) {
                 searchQuery: state.configSearchQuery,
                 activeSection: state.configActiveSection,
                 activeSubsection: state.configActiveSubsection,
+                expandedPaths: state.configExpandedPaths,
                 onRawChange: (next) => {
                   state.configRaw = next;
                 },
@@ -629,6 +713,7 @@ export function renderApp(state: AppViewState) {
                   state.configActiveSubsection = null;
                 },
                 onSubsectionChange: (section) => (state.configActiveSubsection = section),
+                onExpandToggle: (pathKey) => state.handleConfigExpandToggle(pathKey),
                 onReload: () => loadConfig(state),
                 onSave: () => saveConfig(state),
                 onApply: () => applyConfig(state),
@@ -683,7 +768,12 @@ export function renderApp(state: AppViewState) {
       </main>
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
+      ${renderSessionDeleteConfirm(state)}
       ${renderChatSettings(state)}
+      <command-palette
+        .open=${state.commandPaletteOpen}
+        @close=${() => state.handleCloseCommandPalette()}
+      ></command-palette>
     </div>
   `;
 }

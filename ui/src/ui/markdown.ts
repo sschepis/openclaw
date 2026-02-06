@@ -2,11 +2,13 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { truncateText } from "./format";
 
+/* oxlint-disable typescript-eslint/no-explicit-any -- marked library types */
 marked.setOptions({
   gfm: true,
   breaks: true,
   mangle: false,
-  highlight: (code: any, lang: any) => highlightCode(code, lang),
+  highlight: (code: string, lang: string) => highlightCode(code, lang),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any);
 
 // Custom renderer for CSV
@@ -20,11 +22,15 @@ const renderer = {
   }
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 marked.use({ renderer } as any);
+/* oxlint-enable typescript-eslint/no-explicit-any */
 
 function renderCsvTable(csv: string): string {
   const rows = csv.trim().split('\n');
-  if (rows.length === 0) return '';
+  if (rows.length === 0) {
+    return '';
+  }
 
   const parseRow = (row: string) => row.split(',').map(c => c.trim());
   
@@ -55,7 +61,9 @@ function highlightCode(code: string, lang: string): string {
   const comments = /(\/\/.*|\/\*[\s\S]*?\*\/)/g;
   const numbers = /\b\d+(\.\d+)?\b/g;
 
-  if (!lang) return code;
+  if (!lang) {
+    return code;
+  }
 
   let highlighted = code
     .replace(/&/g, "&amp;")

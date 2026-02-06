@@ -1132,6 +1132,82 @@
   }
 }
 
+.chat-reading-indicator__status {
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  animation: fadeInStatus 0.3s var(--ease-out);
+}
+
+@keyframes fadeInStatus {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-reading-indicator__status {
+    animation: none;
+  }
+}
+
+/* Streaming status bar - shows above streaming content */
+.chat-streaming-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.chat-streaming-status__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 12px;
+}
+
+.chat-streaming-status__dots > span {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  opacity: 0.6;
+  animation: chatReadingDot 1.2s ease-in-out infinite;
+}
+
+.chat-streaming-status__dots > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-streaming-status__dots > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.chat-streaming-status__text {
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-streaming-status__dots > span {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 /* Chat text */
 .chat-text {
   overflow-wrap: anywhere;

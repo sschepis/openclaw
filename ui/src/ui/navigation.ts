@@ -25,6 +25,41 @@ export type Tab =
   | "debug"
   | "logs";
 
+/**
+ * Tabs that support expandable sub-items in the navigation sidebar.
+ * Only Chat benefits from this - it replaces the secondary sessions sidebar,
+ * giving users quick access to their conversations directly from the nav.
+ */
+export type ExpandableTab = "chat";
+
+/**
+ * Configuration for tabs that support expandable sub-items.
+ */
+export const EXPANDABLE_TAB_CONFIG: Record<
+  ExpandableTab,
+  {
+    /** Whether this tab shows an "add" button next to it */
+    hasAddButton: boolean;
+    /** Maximum number of sub-items to show before truncating */
+    maxVisibleItems: number;
+    /** Label for the "show more" link */
+    showMoreLabel: string;
+  }
+> = {
+  chat: {
+    hasAddButton: true,
+    maxVisibleItems: 10,
+    showMoreLabel: "View all sessions",
+  },
+};
+
+/**
+ * Check if a tab supports expandable sub-items.
+ */
+export function isExpandableTab(tab: Tab): tab is ExpandableTab {
+  return tab in EXPANDABLE_TAB_CONFIG;
+}
+
 const TAB_PATHS: Record<Tab, string> = {
   overview: "/overview",
   channels: "/channels",

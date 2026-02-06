@@ -127,7 +127,10 @@ export async function waitForAgentJob(params: {
       recordAgentRunSnapshot(snapshot);
       finish(snapshot);
     });
-    const timer = setTimeout(() => finish(null), Math.max(1, timeoutMs));
+    // Clamp timeout to 32-bit signed integer max to prevent overflow.
+    const MAX_TIMEOUT_32_BIT = 2_147_483_647;
+    const safeTimeoutMs = Math.min(Math.max(1, timeoutMs), MAX_TIMEOUT_32_BIT);
+    const timer = setTimeout(() => finish(null), safeTimeoutMs);
   });
 }
 

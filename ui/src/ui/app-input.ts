@@ -6,7 +6,9 @@ type App = OpenClawApp & {
   recognition: SpeechRecognition | null;
   chatMessage: string;
   mobileSessionsOpen: boolean;
+  commandPaletteOpen: boolean;
   shadowRoot: ShadowRoot | null;
+  handleToggleCommandPalette: () => void;
 };
 
 export function handleToggleMic(app: App) {
@@ -78,13 +80,11 @@ export async function handleFileUpload(app: App, file: File) {
 export function handleGlobalKeydown(app: App, e: KeyboardEvent) {
   const isCmd = e.metaKey || e.ctrlKey;
   
-  // Cmd+K: Focus Session Search
+  // Cmd+K: Toggle Command Palette
   if (isCmd && e.key === "k") {
     e.preventDefault();
-    const searchInput = app.shadowRoot?.querySelector(".chat-sessions__search input") as HTMLInputElement;
-    if (searchInput) {
-      searchInput.focus();
-    }
+    app.handleToggleCommandPalette();
+    return;
   }
 
   // Cmd+B: Toggle Mobile Sidebar

@@ -27,8 +27,16 @@ export class SecretsStore {
     try {
       const keyData = await fs.readFile(MASTER_KEY_PATH, "utf-8");
       return importKey(keyData.trim());
-    } catch {
-      // Generate new key
+    } catch (err: any) {
+      // Only generate a new key if the file doesn't exist.
+      // Any other error (permissions, corrupt key, I/O) should propagate
+      // to avoid silently orphaning existing secrets.
+      if (err.code !== "ENOENT") {
+        throw new Error(
+          `Failed to load secrets key from ${MASTER_KEY_PATH}: ${err.message ?? err}`,
+        );
+      }
+      // Generate new key only when file is missing
       const key = await generateKey();
       const exported = await exportKey(key);
       await fs.writeFile(MASTER_KEY_PATH, exported, { mode: 0o600 });

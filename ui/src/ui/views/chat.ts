@@ -13,9 +13,11 @@ import {
 import { normalizeMessage, normalizeRoleForGrouping } from "../chat/message-normalizer";
 import { icons } from "../icons";
 import { renderMarkdownSidebar } from "./markdown-sidebar";
-import { renderChatSessions } from "./chat-sessions";
-import { renderThinkingPanel, type ThinkingState } from "../components/thinking-panel";
+import type { ThinkingState } from "../components/thinking-panel";
 import "../components/resizable-divider";
+import "../components/slash-autocomplete/slash-autocomplete";
+import type { SlashCommand, AgentMention, AutocompleteSuggestion } from "../components/slash-autocomplete/slash-autocomplete";
+import { getSlashCommands } from "../components/slash-autocomplete/default-slash-commands";
 
 export type CompactionIndicatorStatus = {
   active: boolean;
@@ -94,6 +96,14 @@ export type ChatProps = {
   // File upload
   onFileUpload?: (file: File) => void;
   onSettings?: () => void;
+  // Slash autocomplete
+  slashAutocompleteOpen?: boolean;
+  slashAutocompleteMode?: "slash" | "mention";
+  slashAutocompleteQuery?: string;
+  slashAutocompleteAgents?: AgentMention[];
+  isGroupChat?: boolean;
+  onSlashAutocompleteSelect?: (suggestion: AutocompleteSuggestion) => void;
+  onSlashAutocompleteClose?: () => void;
 };
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
@@ -275,9 +285,29 @@ function renderAttachmentPreview(props: ChatProps) {
   `;
 }
 
+/**
+ * Render suggested action recommendations.
+ * 
+ * Recommendations are only shown when:
+ * 1. There are recommendations to show (server returns high-confidence suggestions)
+ * 2. Not currently loading chat history
+ * 3. Not currently sending a message
+ * 4. Not currently streaming a response (stream !== null, including empty string)
+ * 5. There's at least one message in the conversation (not empty state)
+ */
 function renderRecommendations(props: ChatProps) {
   const recs = props.recommendations ?? [];
-  if (recs.length === 0 || props.sending || props.stream) {
+  
+  // Hide recommendations during loading, sending, or streaming
+  // Note: stream can be "" (empty string) when waiting for first content, which is still "streaming"
+  const isStreaming = props.stream !== null;
+  if (recs.length === 0 || props.loading || props.sending || isStreaming) {
+    return nothing;
+  }
+
+  // Hide recommendations if there are no messages yet (empty conversation)
+  const hasMessages = Array.isArray(props.messages) && props.messages.length > 0;
+  if (!hasMessages) {
     return nothing;
   }
 
@@ -304,6 +334,34 @@ function renderRecommendations(props: ChatProps) {
         )}
       </div>
     </div>
+  `;
+}
+
+/**
+ * Render slash autocomplete dropdown for / commands and @ mentions.
+ */
+function renderSlashAutocomplete(props: ChatProps) {
+  if (!props.slashAutocompleteOpen) {
+    return nothing;
+  }
+
+  const commands = getSlashCommands(props.isGroupChat ?? false);
+  const agents = props.slashAutocompleteAgents ?? [];
+
+  return html`
+    <slash-autocomplete
+      .open=${props.slashAutocompleteOpen}
+      .mode=${props.slashAutocompleteMode ?? "slash"}
+      .query=${props.slashAutocompleteQuery ?? ""}
+      .commands=${commands}
+      .agents=${agents}
+      @select=${(e: CustomEvent<AutocompleteSuggestion>) => {
+        props.onSlashAutocompleteSelect?.(e.detail);
+      }}
+      @close=${() => {
+        props.onSlashAutocompleteClose?.();
+      }}
+    ></slash-autocomplete>
   `;
 }
 
@@ -377,7 +435,7 @@ export function renderChat(props: ChatProps) {
         (item) => item.key,
         (item) => {
           if (item.kind === "reading-indicator") {
-            return renderReadingIndicatorGroup(assistantIdentity);
+            return renderReadingIndicatorGroup(assistantIdentity, props.thinkingState);
           }
 
           if (item.kind === "stream") {
@@ -386,6 +444,7 @@ export function renderChat(props: ChatProps) {
               item.startedAt,
               props.onOpenSidebar,
               assistantIdentity,
+              props.thinkingState,
             );
           }
 
@@ -414,42 +473,10 @@ export function renderChat(props: ChatProps) {
   `;
 
   return html`
-    <section class="card chat chat-layout-wrapper">
-      <div class="chat-sessions-pane ${props.mobileSessionsOpen ? "chat-sessions-pane--open" : ""}">
-        ${renderChatSessions({
-          sessions: props.sessions,
-          activeSessionKey: props.sessionKey,
-          onSelect: (key) => {
-            props.onSessionKeyChange(key);
-            if (props.mobileSessionsOpen && props.onToggleMobileSessions) {
-              props.onToggleMobileSessions();
-            }
-          },
-          onNewSession: () => {
-            props.onNewSession();
-            if (props.mobileSessionsOpen && props.onToggleMobileSessions) {
-              props.onToggleMobileSessions();
-            }
-          },
-          onDeleteSession: props.onDeleteSession,
-          loading: props.loading && !props.sessions,
-          searchQuery: props.sessionSearchQuery ?? "",
-          onSearchChange: props.onSessionSearchChange,
-          mobileOpen: props.mobileSessionsOpen,
-          onCloseMobile: props.onToggleMobileSessions,
-        })}
-      </div>
-
-      <div class="chat-main-pane">
+    <section class="card chat chat-layout-wrapper chat-layout-wrapper--no-sidebar">
+      <div class="chat-main-pane chat-main-pane--full">
         <div class="chat-header">
           <div class="chat-header__left">
-            <button
-              class="btn--icon chat-mobile-toggle"
-              @click=${props.onToggleMobileSessions}
-              aria-label="Open sessions"
-            >
-              ${icons.menu}
-            </button>
             ${renderEditableSessionTitle(
               activeSession?.displayName ?? "New Session",
               props.sessionKey,
@@ -457,6 +484,13 @@ export function renderChat(props: ChatProps) {
             )}
           </div>
           <div class="chat-header__right">
+            <button
+              class="btn--icon"
+              @click=${props.onNewSession}
+              title="New Session"
+            >
+              ${icons.plus}
+            </button>
             <button
               class="btn--icon"
               @click=${props.onSettings}
@@ -477,8 +511,6 @@ export function renderChat(props: ChatProps) {
             </button>
           </div>
         ` : nothing}
-
-        ${props.thinkingState ? renderThinkingPanel(props.thinkingState) : nothing}
 
         ${renderCompactionIndicator(props.compactionStatus)}
 
@@ -579,7 +611,8 @@ export function renderChat(props: ChatProps) {
             : nothing
         }
 
-        <div class="chat-compose">
+        <div class="chat-compose" style="position: relative;">
+          ${renderSlashAutocomplete(props)}
           ${renderRecommendations(props)}
           ${renderAttachmentPreview(props)}
           <div class="chat-compose__row">

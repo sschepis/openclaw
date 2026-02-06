@@ -4,6 +4,26 @@ import { html, type TemplateResult } from "lit";
 // All icons use currentColor for stroke
 
 export const icons = {
+  // OpenClaw brand logo (lobster)
+  openclaw: html`
+    <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="lobster-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ff4d4d"/>
+          <stop offset="100%" stop-color="#991b1b"/>
+        </linearGradient>
+      </defs>
+      <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#lobster-gradient)"/>
+      <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#lobster-gradient)"/>
+      <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#lobster-gradient)"/>
+      <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
+      <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="45" cy="35" r="6" fill="#050810"/>
+      <circle cx="75" cy="35" r="6" fill="#050810"/>
+      <circle cx="46" cy="34" r="2.5" fill="#00e5cc"/>
+      <circle cx="76" cy="34" r="2.5" fill="#00e5cc"/>
+    </svg>
+  `,
   lock: html`
     <svg viewBox="0 0 24 24">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -353,6 +373,50 @@ export const icons = {
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
       <line x1="12" y1="9" x2="12" y2="13"></line>
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  `,
+  chevronRight: html`
+    <svg viewBox="0 0 24 24">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  `,
+  chevronDown: html`
+    <svg viewBox="0 0 24 24">
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  `,
+  userPlus: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <line x1="19" y1="8" x2="19" y2="14"></line>
+      <line x1="22" y1="11" x2="16" y2="11"></line>
+    </svg>
+  `,
+  userMinus: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <line x1="22" y1="11" x2="16" y2="11"></line>
+    </svg>
+  `,
+  users: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
+  `,
+  command: html`
+    <svg viewBox="0 0 24 24">
+      <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
+    </svg>
+  `,
+  atSign: html`
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4"></circle>
+      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path>
     </svg>
   `,
 } as const;

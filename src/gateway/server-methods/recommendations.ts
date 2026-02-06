@@ -1,6 +1,5 @@
 import { Ajv } from "ajv";
 import type { GatewayRequestHandlers } from "./types.js";
-import { loadConfig } from "../../config/config.js";
 import { ErrorCodes, errorShape, formatValidationErrors } from "../protocol/index.js";
 import { loadSessionEntry, readSessionMessages } from "../session-utils.js";
 
@@ -29,6 +28,8 @@ export type TaskRecommendation = {
   priority: number;
   /** Optional icon identifier */
   icon?: string;
+  /** Confidence score (0-1) for how relevant this recommendation is */
+  confidence?: number;
 };
 
 export type RecommendationsResult = {
@@ -94,141 +95,150 @@ function extractMessageRole(message: unknown): string {
 }
 
 /**
- * Analyze conversation context and generate recommendations
+ * Check if the assistant is explicitly asking a question or seeking confirmation.
+ * Returns true if there's a clear question that warrants a yes/no or similar response.
+ */
+function hasExplicitQuestion(text: string): boolean {
+  // Look for explicit question patterns (not just any sentence ending in ?)
+  const questionPatterns = [
+    /\bwould you like\b/i,
+    /\bdo you want\b/i,
+    /\bshould i\b/i,
+    /\bshall i\b/i,
+    /\bwant me to\b/i,
+    /\bwould you prefer\b/i,
+    /\bis that ok\b/i,
+    /\bdoes that work\b/i,
+    /\bwhich (?:one|option|approach)\b.*\?/i,
+    /\bwhat would you like\b/i,
+    /\blet me know if\b/i,
+    /\bready to (?:proceed|continue)\b/i,
+  ];
+  return questionPatterns.some((p) => p.test(text));
+}
+
+/**
+ * Check if the response indicates incomplete work or clear next steps.
+ */
+function hasInProgressWork(text: string): boolean {
+  const patterns = [
+    /\bnext,?\s+(?:i'll|we'll|i will|we will|let's)\b/i,
+    /\bstep \d+\b/i,
+    /\bfirst,?\s+(?:i'll|we'll|let's)\b/i,
+    /\bthen,?\s+(?:i'll|we'll)\b/i,
+    /\bafter that,?\s+(?:i'll|we'll)\b/i,
+    /\bcontinuing with\b/i,
+    /\bmoving on to\b/i,
+    /\bto complete this\b/i,
+    /\bremaining (?:steps|tasks|items)\b/i,
+  ];
+  return patterns.some((p) => p.test(text));
+}
+
+/**
+ * Check if the response contains actionable code that could be run or applied.
+ */
+function hasActionableCode(text: string): boolean {
+  // Look for code blocks with executable content
+  const codeBlockMatch = text.match(/```[\s\S]*?```/g);
+  if (!codeBlockMatch) {
+    return false;
+  }
+  // Check if there's substantial code (not just config/examples)
+  for (const block of codeBlockMatch) {
+    const content = block.replace(/```\w*\n?/g, "").replace(/```/g, "");
+    // Heuristic: code with function definitions, imports, or executable statements
+    if (
+      content.length > 50 &&
+      (content.includes("function") ||
+        content.includes("const ") ||
+        content.includes("let ") ||
+        content.includes("import ") ||
+        content.includes("export ") ||
+        content.includes("class ") ||
+        content.includes("def ") ||
+        content.includes("async "))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if the response indicates an error or problem that needs fixing.
+ */
+function hasErrorContext(text: string, userText: string): boolean {
+  const errorPatterns = [
+    /\berror:?\s/i,
+    /\bexception\b/i,
+    /\bfailed\b/i,
+    /\bnot working\b/i,
+    /\bissue\b/i,
+    /\bproblem\b/i,
+    /\bbug\b/i,
+    /\bbroken\b/i,
+    /\bunexpected\b/i,
+    /\binvalid\b/i,
+  ];
+  return errorPatterns.some((p) => p.test(text) || p.test(userText));
+}
+
+/**
+ * Check if the response presents multiple options or alternatives.
+ */
+function hasOptions(text: string): boolean {
+  // Look for numbered lists with actual options or explicit option language
+  const hasNumberedList =
+    /(?:^|\n)\s*(?:1\.|•|-)\s*\S/.test(text) && /(?:^|\n)\s*(?:2\.|•|-)\s*\S/.test(text);
+  const hasOptionLanguage = /\b(?:option|alternative|approach|choice|either|or you could)\b/i.test(
+    text,
+  );
+  return hasNumberedList && hasOptionLanguage;
+}
+
+/**
+ * Analyze conversation context and generate recommendations.
+ *
+ * Design principles:
+ * 1. Only show recommendations when there's high confidence they're useful
+ * 2. Recommendations must be specific to the current conversation state
+ * 3. No recommendations for empty conversations or generic states
+ * 4. Prefer fewer, highly relevant recommendations over many generic ones
  */
 function generateRecommendations(params: {
   messages: unknown[];
   limit: number;
 }): TaskRecommendation[] {
   const { messages, limit } = params;
-  const recommendations: TaskRecommendation[] = [];
+
+  // No recommendations for empty conversations - user should initiate
+  if (messages.length === 0) {
+    return [];
+  }
 
   // Get the last few messages for context analysis
   const recentMessages = messages.slice(-10);
-  const lastAssistantMessage = [...recentMessages]
-    .reverse()
+  const lastAssistantMessage = recentMessages
+    .toReversed()
     .find((m) => extractMessageRole(m) === "assistant");
-  const lastUserMessage = [...recentMessages]
-    .reverse()
-    .find((m) => extractMessageRole(m) === "user");
+  const lastUserMessage = recentMessages.toReversed().find((m) => extractMessageRole(m) === "user");
 
-  const lastAssistantText = lastAssistantMessage
-    ? extractMessageText(lastAssistantMessage).toLowerCase()
-    : "";
-  const lastUserText = lastUserMessage ? extractMessageText(lastUserMessage).toLowerCase() : "";
-
-  // Always useful general actions
-  const generalActions: TaskRecommendation[] = [
-    {
-      id: "rec-continue",
-      label: "Continue",
-      prompt: "Continue with the next step",
-      category: "action",
-      priority: 90,
-      icon: "arrow-right",
-    },
-    {
-      id: "rec-explain",
-      label: "Explain more",
-      prompt: "Can you explain that in more detail?",
-      category: "clarify",
-      priority: 70,
-      icon: "help-circle",
-    },
-    {
-      id: "rec-summarize",
-      label: "Summarize",
-      prompt: "Please summarize what we've discussed so far",
-      category: "action",
-      priority: 60,
-      icon: "list",
-    },
-  ];
-
-  // Context-specific recommendations based on last assistant response
-  const contextActions: TaskRecommendation[] = [];
-
-  // Detect code-related context
-  if (
-    lastAssistantText.includes("```") ||
-    lastAssistantText.includes("function") ||
-    lastAssistantText.includes("const ") ||
-    lastAssistantText.includes("class ") ||
-    lastAssistantText.includes("import ")
-  ) {
-    contextActions.push(
-      {
-        id: "rec-run-code",
-        label: "Run this code",
-        prompt: "Run this code and show me the output",
-        category: "action",
-        priority: 95,
-        icon: "play",
-      },
-      {
-        id: "rec-explain-code",
-        label: "Explain code",
-        prompt: "Explain how this code works step by step",
-        category: "clarify",
-        priority: 85,
-        icon: "code",
-      },
-      {
-        id: "rec-improve-code",
-        label: "Improve code",
-        prompt: "How can this code be improved?",
-        category: "explore",
-        priority: 75,
-        icon: "sparkles",
-      },
-      {
-        id: "rec-add-tests",
-        label: "Add tests",
-        prompt: "Write unit tests for this code",
-        category: "action",
-        priority: 70,
-        icon: "check-circle",
-      },
-    );
+  // No recommendations if there's no assistant response yet
+  if (!lastAssistantMessage) {
+    return [];
   }
 
-  // Detect error/debugging context
-  if (
-    lastAssistantText.includes("error") ||
-    lastAssistantText.includes("exception") ||
-    lastAssistantText.includes("failed") ||
-    lastAssistantText.includes("bug") ||
-    lastUserText.includes("error") ||
-    lastUserText.includes("not working")
-  ) {
-    contextActions.push(
-      {
-        id: "rec-fix-error",
-        label: "Fix this error",
-        prompt: "How do I fix this error?",
-        category: "action",
-        priority: 98,
-        icon: "wrench",
-      },
-      {
-        id: "rec-debug",
-        label: "Debug steps",
-        prompt: "What debugging steps should I take?",
-        category: "explore",
-        priority: 85,
-        icon: "bug",
-      },
-    );
-  }
+  const lastAssistantText = extractMessageText(lastAssistantMessage);
+  const lastUserText = lastUserMessage ? extractMessageText(lastUserMessage) : "";
+  const lowerAssistantText = lastAssistantText.toLowerCase();
+  const lowerUserText = lastUserText.toLowerCase();
 
-  // Detect question/explanation context
-  if (
-    lastAssistantText.includes("?") ||
-    lastAssistantText.includes("would you like") ||
-    lastAssistantText.includes("do you want") ||
-    lastAssistantText.includes("should i")
-  ) {
-    contextActions.push(
+  const recommendations: TaskRecommendation[] = [];
+
+  // High-confidence: Assistant asked an explicit question requiring a response
+  if (hasExplicitQuestion(lastAssistantText)) {
+    recommendations.push(
       {
         id: "rec-yes",
         label: "Yes, proceed",
@@ -236,125 +246,89 @@ function generateRecommendations(params: {
         category: "followup",
         priority: 100,
         icon: "check",
+        confidence: 0.95,
       },
       {
         id: "rec-no",
-        label: "No, try different approach",
-        prompt: "No, let's try a different approach",
+        label: "Try different approach",
+        prompt: "Let's try a different approach instead",
         category: "followup",
         priority: 95,
         icon: "x",
+        confidence: 0.9,
       },
     );
   }
 
-  // Detect list/options context
-  if (
-    lastAssistantText.includes("1.") ||
-    lastAssistantText.includes("option") ||
-    lastAssistantText.includes("choice") ||
-    lastAssistantText.includes("alternative")
-  ) {
-    contextActions.push({
-      id: "rec-compare",
-      label: "Compare options",
-      prompt: "Can you compare these options and recommend the best one?",
-      category: "explore",
-      priority: 80,
-      icon: "scale",
-    });
-  }
-
-  // Detect file/project context
-  if (
-    lastAssistantText.includes("file") ||
-    lastAssistantText.includes("directory") ||
-    lastAssistantText.includes("folder") ||
-    lastAssistantText.includes("project")
-  ) {
-    contextActions.push(
-      {
-        id: "rec-show-files",
-        label: "Show file structure",
-        prompt: "Show me the file structure",
-        category: "explore",
-        priority: 75,
-        icon: "folder",
-      },
-      {
-        id: "rec-create-file",
-        label: "Create file",
-        prompt: "Create this file for me",
-        category: "action",
-        priority: 80,
-        icon: "file-plus",
-      },
-    );
-  }
-
-  // Detect incomplete/continuing work
-  if (
-    lastAssistantText.includes("next") ||
-    lastAssistantText.includes("step") ||
-    lastAssistantText.includes("then") ||
-    lastAssistantText.includes("after that")
-  ) {
-    contextActions.push({
-      id: "rec-next-step",
-      label: "Next step",
-      prompt: "What's the next step?",
-      category: "followup",
-      priority: 92,
+  // High-confidence: Work is in progress with clear continuation
+  if (hasInProgressWork(lastAssistantText)) {
+    recommendations.push({
+      id: "rec-continue",
+      label: "Continue",
+      prompt: "Continue with the next step",
+      category: "action",
+      priority: 90,
       icon: "arrow-right",
+      confidence: 0.85,
     });
   }
 
-  // Empty conversation - show starter recommendations
-  if (messages.length === 0) {
-    return [
-      {
-        id: "rec-help",
-        label: "What can you help with?",
-        prompt: "What can you help me with?",
-        category: "explore",
-        priority: 100,
-        icon: "help-circle",
-      },
-      {
-        id: "rec-project",
-        label: "Explore project",
-        prompt: "Help me understand the current project structure",
-        category: "explore",
-        priority: 90,
-        icon: "folder",
-      },
-      {
-        id: "rec-task",
-        label: "Start a task",
-        prompt: "I want to work on a new task",
+  // Medium-high confidence: Actionable code present
+  if (hasActionableCode(lastAssistantText)) {
+    recommendations.push({
+      id: "rec-apply-code",
+      label: "Apply changes",
+      prompt: "Apply these changes to the codebase",
+      category: "action",
+      priority: 88,
+      icon: "play",
+      confidence: 0.8,
+    });
+  }
+
+  // Medium-high confidence: Error context detected
+  if (hasErrorContext(lowerAssistantText, lowerUserText)) {
+    // Only add if we don't already have high-confidence recommendations
+    if (recommendations.length < 2) {
+      recommendations.push({
+        id: "rec-fix",
+        label: "Fix this",
+        prompt: "Please fix this issue",
         category: "action",
         priority: 85,
-        icon: "plus",
-      },
-    ];
-  }
-
-  // Combine and deduplicate recommendations
-  const allRecs = [...contextActions, ...generalActions];
-
-  // Sort by priority and limit
-  allRecs.sort((a, b) => b.priority - a.priority);
-
-  // Remove duplicates by id
-  const seen = new Set<string>();
-  for (const rec of allRecs) {
-    if (!seen.has(rec.id) && recommendations.length < limit) {
-      seen.add(rec.id);
-      recommendations.push(rec);
+        icon: "wrench",
+        confidence: 0.75,
+      });
     }
   }
 
-  return recommendations;
+  // Medium confidence: Multiple options presented
+  if (hasOptions(lastAssistantText) && recommendations.length < 2) {
+    recommendations.push({
+      id: "rec-compare",
+      label: "Compare & recommend",
+      prompt: "Compare these options and recommend the best one for my use case",
+      category: "explore",
+      priority: 80,
+      icon: "scale",
+      confidence: 0.7,
+    });
+  }
+
+  // Sort by confidence then priority, limit results
+  recommendations.sort((a, b) => {
+    const confDiff = (b.confidence ?? 0) - (a.confidence ?? 0);
+    if (Math.abs(confDiff) > 0.05) {
+      return confDiff;
+    }
+    return b.priority - a.priority;
+  });
+
+  // Only return recommendations with sufficient confidence (>= 0.7)
+  const highConfidenceRecs = recommendations.filter((r) => (r.confidence ?? 0) >= 0.7);
+
+  // Cap at limit
+  return highConfidenceRecs.slice(0, limit);
 }
 
 export const recommendationsHandlers: GatewayRequestHandlers = {

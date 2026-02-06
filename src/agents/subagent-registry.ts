@@ -321,7 +321,9 @@ export function registerSubagentRun(params: {
 
 async function waitForSubagentCompletion(runId: string, waitTimeoutMs: number) {
   try {
-    const timeoutMs = Math.max(1, Math.floor(waitTimeoutMs));
+    // Clamp to 32-bit max (minus buffer) so we don't overflow client/server timers.
+    const MAX_TIMEOUT_32_BIT = 2_147_483_647;
+    const timeoutMs = Math.min(Math.max(1, Math.floor(waitTimeoutMs)), MAX_TIMEOUT_32_BIT - 60_000);
     const wait = await callGateway<{
       status?: string;
       startedAt?: number;

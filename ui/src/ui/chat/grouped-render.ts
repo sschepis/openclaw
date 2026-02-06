@@ -3,6 +3,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { AssistantIdentity } from "../assistant-identity";
 import { icons } from "../icons";
 import type { ActionMessage, MessageGroup } from "../types/chat-types";
+import type { ThinkingState } from "../components/thinking-panel";
 import { toSanitizedMarkdownHtml } from "../markdown";
 import { renderCopyAsMarkdownButton } from "./copy-as-markdown";
 import {
@@ -55,7 +56,16 @@ function extractImages(message: unknown): ImageBlock[] {
   return images;
 }
 
-export function renderReadingIndicatorGroup(assistant?: AssistantIdentity) {
+export function renderReadingIndicatorGroup(
+  assistant?: AssistantIdentity,
+  thinkingState?: ThinkingState | null,
+) {
+  // Extract status text from thinking state
+  const activeAction = thinkingState?.actions.find(a => a.status === "running");
+  const statusText = activeAction?.label
+    ? `${activeAction.label}...`
+    : thinkingState?.status || "Thinking...";
+  
   return html`
     <div class="chat-group assistant">
       ${renderAvatar("assistant", assistant)}
@@ -64,6 +74,7 @@ export function renderReadingIndicatorGroup(assistant?: AssistantIdentity) {
           <span class="chat-reading-indicator__dots">
             <span></span><span></span><span></span>
           </span>
+          <span class="chat-reading-indicator__status">${statusText}</span>
         </div>
       </div>
     </div>
@@ -75,12 +86,19 @@ export function renderStreamingGroup(
   startedAt: number,
   onOpenSidebar?: (content: string) => void,
   assistant?: AssistantIdentity,
+  thinkingState?: ThinkingState | null,
 ) {
   const timestamp = new Date(startedAt).toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   });
   const name = assistant?.name ?? "Assistant";
+
+  // Extract status text from thinking state
+  const activeAction = thinkingState?.actions.find(a => a.status === "running");
+  const statusText = activeAction?.label
+    ? `${activeAction.label}...`
+    : thinkingState?.status || null;
 
   return html`
     <div class="chat-group assistant">
@@ -96,6 +114,16 @@ export function renderStreamingGroup(
           { isStreaming: true, showReasoning: false },
           onOpenSidebar,
         )}
+        ${statusText
+          ? html`
+            <div class="chat-streaming-status">
+              <span class="chat-streaming-status__dots">
+                <span></span><span></span><span></span>
+              </span>
+              <span class="chat-streaming-status__text">${statusText}</span>
+            </div>
+          `
+          : nothing}
         <div class="chat-group-footer">
           <span class="chat-sender-name">${name}</span>
           <span class="chat-group-timestamp">${timestamp}</span>

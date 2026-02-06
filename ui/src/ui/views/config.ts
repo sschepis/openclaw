@@ -2,6 +2,12 @@ import { html, nothing } from "lit";
 import type { ConfigUiHints } from "../types";
 import { analyzeConfigSchema, renderConfigForm, SECTION_META } from "./config-form";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared";
+import {
+  renderPropertyGrid,
+  createInitialExpandedPaths,
+  type PropertyGridConfig,
+  type JsonSchema as PropertyGridJsonSchema,
+} from "../components/property-grid";
 
 export type ConfigProps = {
   raw: string;
@@ -16,18 +22,20 @@ export type ConfigProps = {
   schema: unknown;
   schemaLoading: boolean;
   uiHints: ConfigUiHints;
-  formMode: "form" | "raw";
+  formMode: "form" | "raw" | "grid";
   formValue: Record<string, unknown> | null;
   originalValue: Record<string, unknown> | null;
   searchQuery: string;
   activeSection: string | null;
   activeSubsection: string | null;
+  expandedPaths: Set<string>;
   onRawChange: (next: string) => void;
-  onFormModeChange: (mode: "form" | "raw") => void;
+  onFormModeChange: (mode: "form" | "raw" | "grid") => void;
   onFormPatch: (path: Array<string | number>, value: unknown) => void;
   onSearchChange: (query: string) => void;
   onSectionChange: (section: string | null) => void;
   onSubsectionChange: (section: string | null) => void;
+  onExpandToggle: (pathKey: string) => void;
   onReload: () => void;
   onSave: () => void;
   onApply: () => void;
@@ -423,10 +431,14 @@ export function renderConfig(props: ConfigProps) {
       ? null
       : (props.activeSubsection ?? subsections[0]?.key ?? null);
 
-  // Compute diff for showing changes (works for both form and raw modes)
-  const diff = props.formMode === "form" ? computeDiff(props.originalValue, props.formValue) : [];
+  // Compute diff for showing changes (works for form, grid, and raw modes)
+  const diff =
+    props.formMode === "form" || props.formMode === "grid"
+      ? computeDiff(props.originalValue, props.formValue)
+      : [];
   const hasRawChanges = props.formMode === "raw" && props.raw !== props.originalRaw;
-  const hasChanges = props.formMode === "form" ? diff.length > 0 : hasRawChanges;
+  const hasChanges =
+    props.formMode === "form" || props.formMode === "grid" ? diff.length > 0 : hasRawChanges;
 
   // Save/apply buttons require actual changes to be enabled.
   // Note: formUnsafe warns about unsupported schema paths but shouldn't block saving.
@@ -518,6 +530,14 @@ export function renderConfig(props: ConfigProps) {
         <!-- Mode toggle at bottom -->
         <div class="config-sidebar__footer">
           <div class="config-mode-toggle">
+            <button
+              class="config-mode-toggle__btn ${props.formMode === "grid" ? "active" : ""}"
+              ?disabled=${props.schemaLoading || !props.schema}
+              @click=${() => props.onFormModeChange("grid")}
+              title="Property grid view (VS Code style)"
+            >
+              Grid
+            </button>
             <button
               class="config-mode-toggle__btn ${props.formMode === "form" ? "active" : ""}"
               ?disabled=${props.schemaLoading || !props.schema}
@@ -684,48 +704,70 @@ export function renderConfig(props: ConfigProps) {
         <!-- Form content -->
         <div class="config-content">
           ${
-            props.formMode === "form"
-              ? html`
-                ${
-                  props.schemaLoading
-                    ? html`
-                        <div class="config-loading">
-                          <div class="config-loading__spinner"></div>
-                          <span>Loading schema…</span>
-                        </div>
-                      `
-                    : renderConfigForm({
-                        schema: analysis.schema,
-                        uiHints: props.uiHints,
-                        value: props.formValue,
-                        disabled: props.loading || !props.formValue,
-                        unsupportedPaths: analysis.unsupportedPaths,
-                        onPatch: props.onFormPatch,
-                        searchQuery: props.searchQuery,
-                        activeSection: props.activeSection,
-                        activeSubsection: effectiveSubsection,
-                      })
-                }
-                ${
-                  formUnsafe
-                    ? html`
-                        <div class="callout danger" style="margin-top: 12px">
-                          Form view can't safely edit some fields. Use Raw to avoid losing config entries.
-                        </div>
-                      `
-                    : nothing
-                }
-              `
-              : html`
-                <label class="field config-raw-field">
-                  <span>Raw JSON5</span>
-                  <textarea
-                    .value=${props.raw}
-                    @input=${(e: Event) =>
-                      props.onRawChange((e.target as HTMLTextAreaElement).value)}
-                  ></textarea>
-                </label>
-              `
+            props.formMode === "grid"
+              ? props.schemaLoading
+                ? html`
+                    <div class="config-loading">
+                      <div class="config-loading__spinner"></div>
+                      <span>Loading schema…</span>
+                    </div>
+                  `
+                : renderPropertyGrid({
+                    schema: analysis.schema as PropertyGridJsonSchema,
+                    value: props.formValue ?? {},
+                    uiHints: props.uiHints,
+                    searchQuery: props.searchQuery,
+                    expandedPaths: props.expandedPaths,
+                    disabled: props.loading || !props.formValue,
+                    showModified: true,
+                    originalValue: props.originalValue ?? undefined,
+                    activeSection: props.activeSection,
+                    onPatch: props.onFormPatch,
+                    onExpandToggle: props.onExpandToggle,
+                    onSearchChange: props.onSearchChange,
+                  })
+              : props.formMode === "form"
+                ? html`
+                    ${
+                      props.schemaLoading
+                        ? html`
+                            <div class="config-loading">
+                              <div class="config-loading__spinner"></div>
+                              <span>Loading schema…</span>
+                            </div>
+                          `
+                        : renderConfigForm({
+                            schema: analysis.schema,
+                            uiHints: props.uiHints,
+                            value: props.formValue,
+                            disabled: props.loading || !props.formValue,
+                            unsupportedPaths: analysis.unsupportedPaths,
+                            onPatch: props.onFormPatch,
+                            searchQuery: props.searchQuery,
+                            activeSection: props.activeSection,
+                            activeSubsection: effectiveSubsection,
+                          })
+                    }
+                    ${
+                      formUnsafe
+                        ? html`
+                            <div class="callout danger" style="margin-top: 12px">
+                              Form view can't safely edit some fields. Use Raw to avoid losing config entries.
+                            </div>
+                          `
+                        : nothing
+                    }
+                  `
+                : html`
+                    <label class="field config-raw-field">
+                      <span>Raw JSON5</span>
+                      <textarea
+                        .value=${props.raw}
+                        @input=${(e: Event) =>
+                          props.onRawChange((e.target as HTMLTextAreaElement).value)}
+                      ></textarea>
+                    </label>
+                  `
           }
         </div>
 

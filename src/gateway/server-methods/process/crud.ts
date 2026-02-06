@@ -78,8 +78,12 @@ function hasCircularDependency(tasks: Array<{ label: string; dependsOn?: string[
   const inStack = new Set<string>();
 
   function dfs(label: string): boolean {
-    if (inStack.has(label)) return true; // Cycle detected
-    if (visited.has(label)) return false; // Already processed
+    if (inStack.has(label)) {
+      return true;
+    } // Cycle detected
+    if (visited.has(label)) {
+      return false;
+    } // Already processed
 
     visited.add(label);
     inStack.add(label);
@@ -98,7 +102,9 @@ function hasCircularDependency(tasks: Array<{ label: string; dependsOn?: string[
   }
 
   for (const task of tasks) {
-    if (dfs(task.label)) return true;
+    if (dfs(task.label)) {
+      return true;
+    }
   }
 
   return false;

@@ -41,18 +41,21 @@ const validateProcessResumeParams = TypeCompiler.Compile(ProcessResumeParamsSche
 
 /**
  * Process statuses that can be run.
+ * Reserved for future use.
  */
-const RUNNABLE_STATUSES: Set<ProcessStatus> = new Set(["draft", "active"]);
+const _RUNNABLE_STATUSES: Set<ProcessStatus> = new Set(["draft", "active"]);
 
 /**
  * Process statuses that can be paused.
+ * Reserved for future use.
  */
-const PAUSABLE_STATUSES: Set<ProcessStatus> = new Set(["active"]);
+const _PAUSABLE_STATUSES: Set<ProcessStatus> = new Set(["active"]);
 
 /**
  * Process statuses that can be resumed.
+ * Reserved for future use.
  */
-const RESUMABLE_STATUSES: Set<ProcessStatus> = new Set(["paused"]);
+const _RESUMABLE_STATUSES: Set<ProcessStatus> = new Set(["paused"]);
 
 export const processLifecycleHandlers: GatewayRequestHandlers = {
   /**

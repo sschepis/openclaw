@@ -61,4 +61,6 @@ export type TaskRecommendation = {
   category: "followup" | "action" | "clarify" | "explore" | "command";
   priority: number;
   icon?: string;
+  /** Confidence score (0-1) for how relevant this recommendation is */
+  confidence?: number;
 };

@@ -342,6 +342,17 @@ export type AgentsListResult = {
   agents: GatewayAgentRow[];
 };
 
+/**
+ * The special "Global" session key. This session is always present,
+ * cannot be deleted, and has visibility over all other session histories.
+ */
+export const GLOBAL_SESSION_KEY = "global";
+
+/**
+ * Display name for the Global session.
+ */
+export const GLOBAL_SESSION_DISPLAY_NAME = "Global";
+
 export type GatewaySessionRow = {
   key: string;
   kind: "direct" | "group" | "global" | "unknown";

@@ -1,6 +1,8 @@
 import type { GatewayBrowserClient } from "../gateway";
 import type { SessionsListResult } from "../types";
+import { GLOBAL_SESSION_KEY } from "../types";
 import { toNumber } from "../format";
+import type { SessionDeleteConfirmState } from "../ui-types";
 
 export type SessionsState = {
   client: GatewayBrowserClient | null;
@@ -12,6 +14,7 @@ export type SessionsState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  sessionDeleteConfirm: SessionDeleteConfirmState | null;
 };
 
 export async function loadSessions(
@@ -95,27 +98,160 @@ export async function patchSession(
   }
 }
 
+/**
+ * Check if a session key represents the protected Global session.
+ */
+export function isGlobalSessionKey(key: string): boolean {
+  return key === GLOBAL_SESSION_KEY;
+}
+
+/**
+ * Legacy delete that immediately deletes without showing child sessions.
+ * Now redirects to initiateDeleteSession to show the confirmation modal.
+ */
 export async function deleteSession(state: SessionsState, key: string) {
+  // Use the new modal-based confirmation flow
+  await initiateDeleteSession(state, key);
+}
+
+/**
+ * Get display name for a session, falling back to a shortened key.
+ */
+function getSessionDisplayName(session: { label?: string | null; key: string }): string {
+  if (session.label && session.label.trim()) {
+    return session.label.trim();
+  }
+  // Show first 12 chars of key for display
+  return session.key.length > 12 ? session.key.slice(0, 12) + "…" : session.key;
+}
+
+/**
+ * Initiate the delete confirmation flow. Opens the modal and loads child sessions.
+ */
+export async function initiateDeleteSession(state: SessionsState, key: string) {
   if (!state.client || !state.connected) {
     return;
   }
-  if (state.sessionsLoading) {
+  // Prevent deletion of the Global session
+  if (isGlobalSessionKey(key)) {
+    window.alert("The Global session cannot be deleted.");
     return;
   }
-  const confirmed = window.confirm(
-    `Delete session "${key}"?\n\nDeletes the session entry and archives its transcript.`,
-  );
-  if (!confirmed) {
-    return;
+
+  // Find display name from current sessions list
+  let displayName = key;
+  if (state.sessionsResult?.sessions) {
+    const found = state.sessionsResult.sessions.find((s) => s.key === key);
+    if (found) {
+      displayName = getSessionDisplayName(found);
+    }
   }
-  state.sessionsLoading = true;
-  state.sessionsError = null;
+
+  // Open modal with loading state
+  state.sessionDeleteConfirm = {
+    sessionKey: key,
+    displayName,
+    loading: true,
+    childSessions: [],
+    deleting: false,
+    error: null,
+  };
+
+  // Query for child sessions (sessions spawned by this session)
   try {
-    await state.client.request("sessions.delete", { key, deleteTranscript: true });
+    const res = await state.client.request("sessions.list", {
+      spawnedBy: key,
+      includeGlobal: false,
+      includeUnknown: true,
+    });
+    const childSessions: Array<{ key: string; displayName: string }> = [];
+    if (res && typeof res === "object" && "sessions" in res) {
+      const sessions = (res as { sessions: Array<{ key: string; label?: string | null }> }).sessions;
+      for (const s of sessions) {
+        childSessions.push({
+          key: s.key,
+          displayName: getSessionDisplayName(s),
+        });
+      }
+    }
+    // Must check again because state could have been modified
+    if (state.sessionDeleteConfirm) {
+      state.sessionDeleteConfirm = {
+        sessionKey: state.sessionDeleteConfirm.sessionKey,
+        displayName: state.sessionDeleteConfirm.displayName,
+        loading: false,
+        childSessions,
+        deleting: false,
+        error: null,
+      };
+    }
+  } catch (err) {
+    if (state.sessionDeleteConfirm) {
+      state.sessionDeleteConfirm = {
+        sessionKey: state.sessionDeleteConfirm.sessionKey,
+        displayName: state.sessionDeleteConfirm.displayName,
+        loading: false,
+        childSessions: state.sessionDeleteConfirm.childSessions,
+        deleting: false,
+        error: `Failed to load child sessions: ${String(err)}`,
+      };
+    }
+  }
+}
+
+/**
+ * Execute the deletion of the session and all its child sessions.
+ */
+export async function executeDeleteSession(state: SessionsState) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  const confirm = state.sessionDeleteConfirm;
+  if (!confirm) {
+    return;
+  }
+
+  const { sessionKey, childSessions, displayName } = confirm;
+
+  state.sessionDeleteConfirm = {
+    sessionKey,
+    displayName,
+    loading: false,
+    childSessions,
+    deleting: true,
+    error: null,
+  };
+
+  try {
+    // Delete child sessions first
+    for (const child of childSessions) {
+      await state.client.request("sessions.delete", { key: child.key, deleteTranscript: true });
+    }
+    // Delete the parent session
+    await state.client.request("sessions.delete", { key: sessionKey, deleteTranscript: true });
+
+    // Close modal and refresh
+    state.sessionDeleteConfirm = null;
     await loadSessions(state);
   } catch (err) {
-    state.sessionsError = String(err);
-  } finally {
-    state.sessionsLoading = false;
+    // Re-read in case state changed
+    const current = state.sessionDeleteConfirm;
+    if (current) {
+      state.sessionDeleteConfirm = {
+        sessionKey: current.sessionKey,
+        displayName: current.displayName,
+        loading: false,
+        childSessions: current.childSessions,
+        deleting: false,
+        error: `Failed to delete session: ${String(err)}`,
+      };
+    }
   }
+}
+
+/**
+ * Cancel the delete confirmation and close the modal.
+ */
+export function cancelDeleteSession(state: SessionsState) {
+  state.sessionDeleteConfirm = null;
 }

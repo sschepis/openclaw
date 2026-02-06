@@ -14,6 +14,28 @@ export type ChatQueueItem = {
 
 export const CRON_CHANNEL_LAST = "last";
 
+/**
+ * State for session deletion confirmation modal.
+ * Tracks the session being deleted and any child sessions that will also be deleted.
+ */
+export type SessionDeleteConfirmState = {
+  /** The session key being deleted */
+  sessionKey: string;
+  /** Display name of the session being deleted */
+  displayName: string;
+  /** Whether we're loading child sessions */
+  loading: boolean;
+  /** Child sessions that will also be deleted (spawned by this session) */
+  childSessions: Array<{
+    key: string;
+    displayName: string;
+  }>;
+  /** Whether deletion is in progress */
+  deleting: boolean;
+  /** Error message if deletion failed */
+  error: string | null;
+};
+
 export type CronFormState = {
   name: string;
   description: string;

@@ -27,7 +27,7 @@ import type {
   StatusSummary,
 } from "./types";
 import type { ActionMessage, TaskRecommendation } from "./types/chat-types";
-import type { ChatAttachment, ChatQueueItem, CronFormState } from "./ui-types";
+import type { ChatAttachment, ChatQueueItem, CronFormState, SessionDeleteConfirmState } from "./ui-types";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
 import type { ThinkingState } from "./components/thinking-panel";
 
@@ -66,6 +66,8 @@ export type AppViewState = {
   chatRecommendations: TaskRecommendation[];
   mobileSessionsOpen: boolean;
   sessionSearchQuery: string;
+  /** Tracks which expandable nav items are currently expanded */
+  navExpandedTabs: Set<string>;
   sidebarOpen: boolean;
   sidebarContent: string | null;
   sidebarError: string | null;
@@ -104,7 +106,7 @@ export type AppViewState = {
   configUiHints: ConfigUiHints;
   configForm: Record<string, unknown> | null;
   configFormOriginal: Record<string, unknown> | null;
-  configFormMode: "form" | "raw";
+  configFormMode: "form" | "raw" | "grid";
   channelsLoading: boolean;
   channelsSnapshot: ChannelsStatusSnapshot | null;
   channelsError: string | null;
@@ -137,6 +139,8 @@ export type AppViewState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  /** State for session deletion confirmation modal */
+  sessionDeleteConfirm: SessionDeleteConfirmState | null;
   activitiesLoading: boolean;
   activitiesList: ActivitiesListResult | null;
   activitiesError: string | null;
@@ -261,6 +265,7 @@ export type AppViewState = {
   handleOpenSidebar: (content: string) => void;
   handleCloseSidebar: () => void;
   handleSplitRatioChange: (ratio: number) => void;
+  handleNavResize: (width: number) => void;
   handleChatSelectQueueItem: (id: string) => void;
   handleChatDropQueueItem: (id: string) => void;
   handleChatClearQueue: () => void;
@@ -287,4 +292,20 @@ export type AppViewState = {
   addActionMessage: (action: ActionMessage) => void;
   clearActionMessages: () => void;
   handleRenameSession: (key: string, newName: string) => Promise<void>;
+  /** Initiate session delete confirmation (opens modal with child sessions) */
+  handleDeleteSessionConfirm: (key: string) => Promise<void>;
+  /** Execute session deletion (parent + all children) */
+  handleDeleteSessionExecute: () => Promise<void>;
+  /** Cancel session deletion and close modal */
+  handleDeleteSessionCancel: () => void;
+  configExpandedPaths: Set<string>;
+  slashAutocompleteOpen: boolean;
+  slashAutocompleteMode: "slash" | "mention";
+  slashAutocompleteQuery: string;
+  handleSlashAutocompleteSelect: (suggestion: unknown) => void;
+  handleSlashAutocompleteClose: () => void;
+  handleConfigExpandToggle: (pathKey: string) => void;
+  commandPaletteOpen: boolean;
+  handleCloseCommandPalette: () => void;
+  handleNavExpandToggle: (tab: string) => void;
 };

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@noble/ed25519": "3.0.0",
+    "@sschepis/alephnet-node": "^1.3.3",
     "dompurify": "^3.3.1",
     "lit": "^3.3.2",
     "marked": "^17.0.1",
@@ -18,6 +19,6 @@
   "devDependencies": {
     "@vitest/browser-playwright": "4.0.18",
     "playwright": "^1.58.1",
-    "vitest": "4.0.18"
+    "vitest": "^4.0.18"
   }
 }

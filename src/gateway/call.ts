@@ -244,11 +244,16 @@ export async function callGateway<T = Record<string, unknown>>(
       },
     });
 
+    // Clamp timeout to 32-bit signed integer max (approx 24 days) to prevent Node.js TimeoutOverflowWarning
+    // which results in a 1ms timeout.
+    const MAX_TIMEOUT_32_BIT = 2_147_483_647;
+    const safeTimeoutMs = Math.min(timeoutMs, MAX_TIMEOUT_32_BIT);
+
     const timer = setTimeout(() => {
       ignoreClose = true;
       client.stop();
       stop(new Error(formatTimeoutError()));
-    }, timeoutMs);
+    }, safeTimeoutMs);
 
     client.start();
   });

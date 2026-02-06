@@ -57,8 +57,8 @@ const DAY_MAP: Record<string, number> = {
   sat: 6,
 };
 
-// Month names to cron month (1-12)
-const MONTH_MAP: Record<string, number> = {
+// Month names to cron month (1-12) - reserved for future use
+const _MONTH_MAP: Record<string, number> = {
   january: 1,
   jan: 1,
   february: 2,
@@ -135,7 +135,9 @@ function parseTime(input: string): { hour: number; minute: number } | null {
 
   for (const pattern of patterns) {
     const match = cleaned.match(pattern);
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     let hour = parseInt(match[1], 10);
     const minute = parseInt(match[2] || "0", 10);
@@ -157,8 +159,9 @@ function parseTime(input: string): { hour: number; minute: number } | null {
 
 /**
  * Get the next occurrence of a specific day of week at a given time.
+ * Reserved for future use.
  */
-function getNextDayOfWeek(dayOfWeek: number, hour: number, minute: number, nowMs: number): number {
+function _getNextDayOfWeek(dayOfWeek: number, hour: number, minute: number, nowMs: number): number {
   const now = new Date(nowMs);
   const result = new Date(nowMs);
 
@@ -194,7 +197,9 @@ function parseEveryInterval(input: string): ScheduleParseResult | null {
 
   for (const pattern of patterns) {
     const match = input.match(pattern);
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     let amount = 1;
     let unit: string;
@@ -207,7 +212,9 @@ function parseEveryInterval(input: string): ScheduleParseResult | null {
     }
 
     const msPerUnit = PERIOD_MAP[unit];
-    if (!msPerUnit) continue;
+    if (!msPerUnit) {
+      continue;
+    }
 
     const everyMs = amount * msPerUnit;
 
@@ -230,16 +237,22 @@ function parseEveryDayAtTime(input: string): ScheduleParseResult | null {
     /every\s+(sunday|sun|monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat)\s+at\s+(.+)/i;
 
   const match = input.match(dayPattern);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   const dayName = match[1].toLowerCase();
   const timeStr = match[2].trim();
 
   const dayOfWeek = DAY_MAP[dayName];
-  if (dayOfWeek === undefined) return null;
+  if (dayOfWeek === undefined) {
+    return null;
+  }
 
   const time = parseTime(timeStr);
-  if (!time) return null;
+  if (!time) {
+    return null;
+  }
 
   const expr = `${time.minute} ${time.hour} * * ${dayOfWeek}`;
 
@@ -263,7 +276,9 @@ function parseEveryTimeOfDay(input: string): ScheduleParseResult | null {
 
   for (const pattern of patterns) {
     const match = input.match(pattern);
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     let timeStr: string;
     if (match[2]) {
@@ -273,7 +288,9 @@ function parseEveryTimeOfDay(input: string): ScheduleParseResult | null {
     }
 
     const time = parseTime(timeStr);
-    if (!time) continue;
+    if (!time) {
+      continue;
+    }
 
     const expr = `${time.minute} ${time.hour} * * *`;
 
@@ -295,13 +312,17 @@ function parseInDuration(input: string, nowMs: number): ScheduleParseResult | nu
     /in\s+(\d+)\s+(second|seconds|sec|secs|minute|minutes|min|mins|hour|hours|hr|hrs|day|days|week|weeks)\b/i;
 
   const match = input.match(pattern);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   const amount = parseInt(match[1], 10);
   const unit = match[2].toLowerCase();
   const msPerUnit = PERIOD_MAP[unit];
 
-  if (!msPerUnit) return null;
+  if (!msPerUnit) {
+    return null;
+  }
 
   const atMs = nowMs + amount * msPerUnit;
 
@@ -327,13 +348,17 @@ function parseAtTimeRelative(input: string, nowMs: number): ScheduleParseResult 
 
   for (let i = 0; i < patterns.length; i++) {
     const match = input.match(patterns[i]);
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     const timeStr = (match[1] || match[2]).trim();
     const time = parseTime(timeStr);
-    if (!time) continue;
+    if (!time) {
+      continue;
+    }
 
-    const now = new Date(nowMs);
+    const _now = new Date(nowMs);
     const target = new Date(nowMs);
     target.setHours(time.hour, time.minute, 0, 0);
 
@@ -371,13 +396,17 @@ function parseOnceAWeek(input: string): ScheduleParseResult | null {
 
   for (const pattern of patterns) {
     const match = input.match(pattern);
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     const dayName = match[1].toLowerCase();
     const timeStr = match[2];
 
     const dayOfWeek = DAY_MAP[dayName];
-    if (dayOfWeek === undefined) continue;
+    if (dayOfWeek === undefined) {
+      continue;
+    }
 
     let hour = 9; // Default to 9am
     let minute = 0;
@@ -414,10 +443,14 @@ function parseTimesPerDay(input: string): ScheduleParseResult | null {
 
   for (const { regex, times: defaultTimes } of patterns) {
     const match = input.match(regex);
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     const times = defaultTimes || parseInt(match[1], 10);
-    if (times < 1 || times > 24) continue;
+    if (times < 1 || times > 24) {
+      continue;
+    }
 
     // Calculate evenly spaced intervals
     const intervalMs = MS_DAY / times;
@@ -445,7 +478,7 @@ function parseCronExpr(input: string): ScheduleParseResult | null {
   }
 
   // Basic validation - each part should be numbers, *, /, or -
-  const cronPartPattern = /^[\d\*\-\/,]+$/;
+  const cronPartPattern = /^[\d*\-/,]+$/;
   const allValid = parts.every((part) => cronPartPattern.test(part));
 
   if (!allValid) {
@@ -518,7 +551,7 @@ export function validateCronExpr(expr: string): boolean {
     return false;
   }
 
-  const cronPartPattern = /^[\d\*\-\/,]+$/;
+  const cronPartPattern = /^[\d*\-/,]+$/;
   return parts.every((part) => cronPartPattern.test(part));
 }
 

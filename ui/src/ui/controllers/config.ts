@@ -27,10 +27,12 @@ export type ConfigState = {
   configForm: Record<string, unknown> | null;
   configFormOriginal: Record<string, unknown> | null;
   configFormDirty: boolean;
-  configFormMode: "form" | "raw";
+  configFormMode: "form" | "raw" | "grid";
   configSearchQuery: string;
   configActiveSection: string | null;
   configActiveSubsection: string | null;
+  /** Expanded paths for property grid view */
+  configExpandedPaths: Set<string>;
   lastError: string | null;
 };
 
@@ -193,5 +195,30 @@ export function removeConfigFormValue(state: ConfigState, path: Array<string | n
   state.configFormDirty = true;
   if (state.configFormMode === "form") {
     state.configRaw = serializeConfigForm(base);
+  }
+}
+
+/**
+ * Toggle expansion state for a path in the property grid
+ */
+export function toggleConfigExpansion(state: ConfigState, pathKey: string) {
+  const next = new Set(state.configExpandedPaths);
+  if (next.has(pathKey)) {
+    next.delete(pathKey);
+  } else {
+    next.add(pathKey);
+  }
+  state.configExpandedPaths = next;
+}
+
+/**
+ * Initialize expanded paths based on schema (expand top-level by default)
+ */
+export function initializeConfigExpandedPaths(state: ConfigState) {
+  const schema = state.configSchema as { properties?: Record<string, unknown> } | null;
+  if (schema?.properties) {
+    state.configExpandedPaths = new Set(Object.keys(schema.properties));
+  } else {
+    state.configExpandedPaths = new Set();
   }
 }

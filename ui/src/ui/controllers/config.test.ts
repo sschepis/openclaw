@@ -29,6 +29,7 @@ function createState(): ConfigState {
     configFormOriginal: null,
     configFormDirty: false,
     configFormMode: "form",
+    configExpandedPaths: new Set<string>(),
     configSearchQuery: "",
     configActiveSection: null,
     configActiveSubsection: null,

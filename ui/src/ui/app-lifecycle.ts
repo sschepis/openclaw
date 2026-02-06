@@ -17,6 +17,7 @@ import {
   syncTabWithLocation,
   syncThemeWithSettings,
 } from "./app-settings";
+import { initializeCommands } from "./components/command-palette/default-commands";
 
 type LifecycleHost = {
   basePath: string;
@@ -48,6 +49,8 @@ export function handleConnected(host: LifecycleHost) {
   if (host.tab === "debug") {
     startDebugPolling(host as unknown as Parameters<typeof startDebugPolling>[0]);
   }
+  // Initialize command palette commands with app context
+  initializeCommands(host as unknown as Parameters<typeof initializeCommands>[0]);
 }
 
 export function handleFirstUpdated(host: LifecycleHost) {

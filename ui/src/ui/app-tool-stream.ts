@@ -1,5 +1,5 @@
 import { truncateText } from "./format";
-import type { ThinkingState, ThinkingAction } from "./components/thinking-panel";
+import type { ThinkingState } from "./components/thinking-panel";
 
 const TOOL_STREAM_LIMIT = 50;
 const TOOL_STREAM_THROTTLE_MS = 80;
@@ -231,7 +231,9 @@ function updateThinkingState(host: ToolStreamHost, payload: AgentEventPayload) {
   } else if (payload.stream === "tool") {
     const data = payload.data || {};
     const toolCallId = data.toolCallId as string;
-    if (!toolCallId) return;
+    if (!toolCallId) {
+      return;
+    }
 
     const phase = data.phase as string;
     const name = data.name as string || "tool";

@@ -4,7 +4,7 @@ export const TAB_GROUPS = [
   { label: "Chat", tabs: ["chat"] },
   {
     label: "Control",
-    tabs: ["overview", "channels", "instances", "sessions", "activities", "cron", "secrets"],
+    tabs: ["overview", "channels", "instances", "sessions", "activities", "cron", "secrets", "files"],
   },
   { label: "Agent", tabs: ["skills", "nodes"] },
   { label: "Settings", tabs: ["config", "debug", "logs"] },
@@ -18,6 +18,7 @@ export type Tab =
   | "activities"
   | "cron"
   | "secrets"
+  | "files"
   | "skills"
   | "nodes"
   | "chat"
@@ -68,6 +69,7 @@ const TAB_PATHS: Record<Tab, string> = {
   activities: "/activities",
   cron: "/cron",
   secrets: "/secrets",
+  files: "/files",
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
@@ -175,6 +177,8 @@ export function iconForTab(tab: Tab): IconName {
       return "loader";
     case "secrets":
       return "lock";
+    case "files":
+      return "folder";
     case "skills":
       return "zap";
     case "nodes":
@@ -206,6 +210,8 @@ export function titleForTab(tab: Tab) {
       return "Cron Jobs";
     case "secrets":
       return "Secrets";
+    case "files":
+      return "Files";
     case "skills":
       return "Skills";
     case "nodes":
@@ -239,6 +245,8 @@ export function subtitleForTab(tab: Tab) {
       return "Schedule wakeups and recurring agent runs.";
     case "secrets":
       return "Manage secure environment variables and API keys.";
+    case "files":
+      return "Browse and edit files in your OpenClaw home folder.";
     case "skills":
       return "Manage skill availability and API key injection.";
     case "nodes":

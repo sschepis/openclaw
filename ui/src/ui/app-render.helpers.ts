@@ -6,6 +6,7 @@ import type { ThemeTransitionContext } from "./theme-transition";
 import type { SessionsListResult } from "./types";
 import { refreshChat } from "./app-chat";
 import { syncUrlWithSessionKey } from "./app-settings";
+import { loadSessions } from "./controllers/sessions";
 import { loadChatHistory } from "./controllers/chat";
 import { formatAgo } from "./format";
 import { icons } from "./icons";
@@ -409,6 +410,23 @@ export function renderExpandableTab(state: AppViewState, tab: Tab) {
     handleAddAction(state, tab);
   };
 
+  const handleRefreshClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (tab === "chat") {
+      void loadSessions(state);
+    }
+  };
+
+  const handleToggleCronClick = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    state.applySettings({
+      ...state.settings,
+      chatHideCron: !state.settings.chatHideCron,
+    });
+  };
+
   return html`
     <div class="nav-item-expandable ${isExpanded ? "nav-item-expandable--expanded" : ""} ${isActive ? "nav-item-expandable--active" : ""}">
       <div class="nav-item-expandable__header">
@@ -423,8 +441,31 @@ export function renderExpandableTab(state: AppViewState, tab: Tab) {
         </a>
         <div class="nav-item-expandable__actions">
           ${
+            tab === "chat"
+              ? html`
+            <button
+              class="nav-item-expandable__refresh ${state.settings.chatHideCron ? "active" : ""}"
+              @click=${handleToggleCronClick}
+              title=${state.settings.chatHideCron ? "Show cron chats" : "Hide cron chats"}
+              aria-label=${state.settings.chatHideCron ? "Show cron chats" : "Hide cron chats"}
+              style="margin-right: 4px;"
+            >
+              ${icons.clock}
+            </button>
+          `
+              : nothing
+          }
+          ${
             config.hasAddButton
               ? html`
+            <button
+              class="nav-item-expandable__refresh"
+              @click=${handleRefreshClick}
+              title="Refresh list"
+              aria-label="Refresh ${titleForTab(tab).toLowerCase()} list"
+            >
+              ${icons.refreshCw}
+            </button>
             <button
               class="nav-item-expandable__add"
               @click=${handleAddClick}
@@ -507,6 +548,15 @@ function getChatSessionSubItems(state: AppViewState): SubItem[] {
   // Filter to regular chat-type sessions (non-global) and sort by most recent
   const chatSessions = sessions
     .filter((s) => s.key !== GLOBAL_KEY && s.kind !== "global")
+    .filter((s) => {
+      if (state.settings.chatHideCron) {
+        // Hide sessions that are associated with cron jobs
+        if (s.cronJobs && s.cronJobs.length > 0) {
+          return false;
+        }
+      }
+      return true;
+    })
     .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 
   // Build the result array with Global session always first

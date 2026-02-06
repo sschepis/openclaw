@@ -12,9 +12,19 @@ export type ActivitiesProps = {
   onRefresh: () => void;
   onAction: (sessionKey: string, actionId: string, params?: Record<string, unknown>) => void;
   onOpenChat: (sessionKey: string) => void;
-  // New props for expanded state management
+  // Expanded state management
   expandedSummaries?: Set<string>;
   onToggleSummary?: (sessionKey: string) => void;
+  // Model selection
+  availableModels?: Array<{ id: string; provider: string }>;
+  onModelChange?: (sessionKey: string, model: string) => void;
+  // Pause/Resume
+  onPause?: (sessionKey: string) => void;
+  onResume?: (sessionKey: string) => void;
+  // Delete
+  onDelete?: (sessionKey: string) => void;
+  // Send message to chat (for action prompts)
+  onSendMessage?: (sessionKey: string, message: string) => void;
 };
 
 // Task type to icon mapping
@@ -160,7 +170,7 @@ function renderActivityPanel(activity: ActivityState, props: ActivitiesProps) {
       ${renderSummarySection(activity, isExpanded, props)}
 
       <!-- Metrics chips -->
-      ${renderMetricsChips(activity)}
+      ${renderMetricsChips(activity, props)}
 
       <!-- State values (if any) -->
       ${renderStateValues(activity.stateValues)}
@@ -205,10 +215,10 @@ function renderSummarySection(
   `;
 }
 
-function renderMetricsChips(activity: ActivityState) {
+function renderMetricsChips(activity: ActivityState, props: ActivitiesProps) {
   // Extract metrics from stateValues if present, or show defaults
   const stateValues = activity.stateValues || {};
-  const chips: Array<{ icon: string; value: string; label: string }> = [];
+  const chips: Array<{ icon: string; value: string; label: string; isModel?: boolean }> = [];
 
   // Look for tokens in state values
   const tokensValue =
@@ -227,13 +237,14 @@ function renderMetricsChips(activity: ActivityState) {
     }
   }
 
-  // Look for model in state values
+  // Look for model in state values - mark it special for dropdown rendering
   const modelValue = stateValues["model"] || stateValues["modelName"];
   if (modelValue && modelValue.value) {
     chips.push({
       icon: "⚡",
       value: String(modelValue.value),
       label: "model",
+      isModel: true,
     });
   }
 
@@ -269,6 +280,7 @@ function renderMetricsChips(activity: ActivityState) {
         icon: "⚡",
         value: modelMatch[1],
         label: "model",
+        isModel: true,
       });
     }
 
@@ -284,17 +296,47 @@ function renderMetricsChips(activity: ActivityState) {
     return nothing;
   }
 
+  const availableModels = props.availableModels ?? [];
+  const hasModelDropdown = availableModels.length > 0 && props.onModelChange;
+
   return html`
     <div class="activity-panel__metrics">
-      ${chips.map(
-        (chip) => html`
+      ${chips.map((chip) => {
+        // Render model chip as dropdown if models available
+        if (chip.isModel && hasModelDropdown) {
+          return html`
+            <div class="activity-metric-chip activity-metric-chip--dropdown">
+              <span class="activity-metric-chip__icon">${chip.icon}</span>
+              <select
+                class="activity-metric-chip__select"
+                .value=${chip.value}
+                @change=${(e: Event) => {
+                  const target = e.target as HTMLSelectElement;
+                  if (props.onModelChange) {
+                    props.onModelChange(activity.sessionKey, target.value);
+                  }
+                }}
+              >
+                <option value=${chip.value} selected>${chip.value}</option>
+                ${availableModels
+                  .filter((m) => m.id !== chip.value)
+                  .map(
+                    (m) => html`<option value=${m.id}>${m.id}</option>`,
+                  )}
+              </select>
+              <span class="activity-metric-chip__label">${chip.label}</span>
+            </div>
+          `;
+        }
+        // Regular chip
+        return html`
           <div class="activity-metric-chip">
             <span class="activity-metric-chip__icon">${chip.icon}</span>
             <span class="activity-metric-chip__value">${chip.value}</span>
             <span class="activity-metric-chip__label">${chip.label}</span>
           </div>
-        `,
-      )}
+        `;
+      })}
     </div>
   `;
 }
@@ -472,28 +514,79 @@ function renderStateValues(stateValues: Record<string, StateValue>) {
 function renderActions(activity: ActivityState, props: ActivitiesProps) {
   const actions = activity.actions ?? [];
   const chatUrl = `${pathForTab("chat", props.basePath)}?session=${encodeURIComponent(activity.sessionKey)}`;
+  
+  // Check if activity is paused (abortedLastRun status)
+  const statusValue = activity.stateValues["status"];
+  const isPaused = statusValue?.value === "paused";
 
   return html`
     <div class="activity-panel__actions">
-      ${actions.map(
-        (action) => html`
-          <button
-            class="btn btn--sm ${action.variant === "primary" ? "primary" : ""} ${action.variant === "danger" ? "danger" : ""}"
-            title=${action.description}
-            @click=${() => handleActionClick(activity, action, props)}
-          >
-            ${action.label}
-          </button>
-        `,
-      )}
-      <a href=${chatUrl} class="btn btn--sm primary">
+      <!-- Standard actions from backend -->
+      ${actions
+        .filter((action) => action.id !== "pause") // We'll render pause/resume manually
+        .map(
+          (action) => html`
+            <button
+              class="btn btn--sm ${action.variant === "primary" ? "primary" : ""} ${action.variant === "danger" ? "danger" : ""}"
+              title=${action.description}
+              @click=${() => handleActionClick(activity, action, props)}
+            >
+              ${action.label}
+            </button>
+          `,
+        )}
+      
+      <!-- Pause/Resume button -->
+      ${props.onPause || props.onResume
+        ? html`
+            <button
+              class="btn btn--sm ${isPaused ? "primary" : ""}"
+              title=${isPaused ? "Resume this activity" : "Pause this activity"}
+              @click=${() => {
+                if (isPaused && props.onResume) {
+                  props.onResume(activity.sessionKey);
+                } else if (!isPaused && props.onPause) {
+                  props.onPause(activity.sessionKey);
+                }
+              }}
+            >
+              ${isPaused ? "Resume" : "Pause"}
+            </button>
+          `
+        : nothing}
+      
+      <!-- Open Chat button -->
+      <a href=${chatUrl} class="btn btn--sm primary" @click=${(e: Event) => {
+        e.preventDefault();
+        props.onOpenChat(activity.sessionKey);
+      }}>
         ${icons.messageSquare || ""} Open Chat
       </a>
+      
+      <!-- Delete button -->
+      ${props.onDelete
+        ? html`
+            <button
+              class="btn btn--sm danger"
+              title="Delete this activity"
+              @click=${() => {
+                const confirmed = window.confirm(
+                  `Are you sure you want to delete "${activity.displayName}"? This action cannot be undone.`,
+                );
+                if (confirmed && props.onDelete) {
+                  props.onDelete(activity.sessionKey);
+                }
+              }}
+            >
+              ${icons.trash || "🗑️"} Delete
+            </button>
+          `
+        : nothing}
     </div>
   `;
 }
 
-function handleActionClick(
+async function handleActionClick(
   activity: ActivityState,
   action: ActivityAction,
   props: ActivitiesProps,
@@ -504,5 +597,21 @@ function handleActionClick(
       return;
     }
   }
+  
+  // Execute the action first to get the prompt
   props.onAction(activity.sessionKey, action.id);
+  
+  // If we have onSendMessage and the action has a prompt template, 
+  // send the message to chat after a small delay to allow navigation
+  if (props.onSendMessage && action.promptTemplate) {
+    // For "status" and "continue" actions, we want to send a message to chat
+    if (action.id === "status" || action.id === "continue") {
+      // Small delay to allow any navigation to complete
+      setTimeout(() => {
+        if (props.onSendMessage) {
+          props.onSendMessage(activity.sessionKey, action.promptTemplate);
+        }
+      }, 100);
+    }
+  }
 }

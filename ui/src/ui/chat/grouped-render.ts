@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { ref } from "lit/directives/ref.js";
 import type { AssistantIdentity } from "../assistant-identity";
 import type { CanvasVisualization } from "../components/canvas-visualization";
 import type { ThinkingState } from "../components/thinking-panel";
@@ -8,6 +9,7 @@ import { icons } from "../icons";
 import { toSanitizedMarkdownHtml } from "../markdown";
 import { renderCanvasBlocksFromContent, hasCanvasContent } from "./canvas-render";
 import { renderCopyAsMarkdownButton } from "./copy-as-markdown";
+import { withCopyButtons } from "../directives/with-copy-buttons";
 import {
   extractTextCached,
   extractThinkingCached,
@@ -452,14 +454,14 @@ function renderGroupedMessage(
       ${renderMessageImages(images)}
       ${
         reasoningMarkdown
-          ? html`<div class="chat-thinking">${unsafeHTML(
+          ? html`<div class="chat-thinking" ${ref(withCopyButtons())}>${unsafeHTML(
               toSanitizedMarkdownHtml(reasoningMarkdown),
             )}</div>`
           : nothing
       }
       ${
         markdown
-          ? html`<div class="chat-text">${unsafeHTML(toSanitizedMarkdownHtml(markdown))}</div>`
+          ? html`<div class="chat-text" ${ref(withCopyButtons())}>${unsafeHTML(toSanitizedMarkdownHtml(markdown))}</div>`
           : nothing
       }
       ${

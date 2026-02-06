@@ -343,6 +343,17 @@ export async function applySessionsPatchToStore(params: {
     }
   }
 
+  if ("archived" in patch) {
+    const raw = patch.archived;
+    if (raw === true) {
+      next.archived = true;
+      next.archivedAt = now;
+    } else if (raw === false) {
+      delete next.archived;
+      delete next.archivedAt;
+    }
+  }
+
   store[storeKey] = next;
   return { ok: true, entry: next };
 }

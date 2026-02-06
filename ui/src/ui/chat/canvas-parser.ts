@@ -2,9 +2,16 @@ import type { CanvasVisualization } from "../components/canvas-visualization";
 
 /**
  * Regex to match canvas code blocks in markdown.
- * Matches ```canvas, ```canvas:title, or ```js:canvas format
+ * Matches ```canvas, ```canvas:title, ```js:canvas, or ```html format
+ * The html format is used for full HTML documents with embedded scripts.
  */
-const CANVAS_BLOCK_REGEX = /```(?:canvas(?::([^\n]+))?|js:canvas)\n([\s\S]*?)```/g;
+const CANVAS_BLOCK_REGEX = /```(?:canvas(?::([^\n]+))?|js:canvas|html(?::([^\n]+))?)\n([\s\S]*?)```/g;
+
+/**
+ * Regex to detect if an HTML block contains interactive elements (scripts).
+ * Used to determine if an HTML block should be rendered as a canvas visualization.
+ */
+const HTML_HAS_SCRIPT_REGEX = /<script[\s>]/i;
 
 /**
  * Alternative format: matches standalone canvas blocks with metadata comment
@@ -18,6 +25,8 @@ export type ParsedCanvasBlock = {
   description?: string;
   startIndex: number;
   endIndex: number;
+  /** True if this block was parsed from an ```html block */
+  isHtmlBlock?: boolean;
 };
 
 /**
@@ -37,6 +46,12 @@ export type ParsedCanvasBlock = {
  *    // @canvas title="Title" description="Description"
  *    // code here
  *    ```
+ *
+ * 4. ```html or ```html:Title
+ *    <!DOCTYPE html>
+ *    <html>...</html>
+ *    ```
+ *    (Only rendered as visualization if it contains <script> tags)
  *
  * The code should define setup() and/or draw(time) functions:
  *
@@ -58,16 +73,29 @@ export function extractCanvasBlocks(content: string): ParsedCanvasBlock[] {
   CANVAS_BLOCK_REGEX.lastIndex = 0;
 
   while ((match = CANVAS_BLOCK_REGEX.exec(content)) !== null) {
-    const titleFromFormat = match[1]?.trim();
-    const code = match[2].trim();
+    // Capture groups:
+    // match[1] = canvas title (from ```canvas:title)
+    // match[2] = html title (from ```html:title)
+    // match[3] = code content
+    const canvasTitle = match[1]?.trim();
+    const htmlTitle = match[2]?.trim();
+    const code = match[3].trim();
+
+    // Determine if this is an HTML block
+    const isHtmlBlock = htmlTitle !== undefined || match[0].startsWith("```html");
+
+    // For HTML blocks, only treat as visualization if it contains scripts
+    if (isHtmlBlock && !HTML_HAS_SCRIPT_REGEX.test(code)) {
+      continue; // Skip HTML blocks without scripts (render as normal code block)
+    }
 
     // Try to extract metadata from code comment
     const metadataMatch = code.match(CANVAS_METADATA_REGEX);
     const titleFromMetadata = metadataMatch?.[1];
     const description = metadataMatch?.[2];
 
-    // Prefer title from format (```canvas:Title) over metadata comment
-    const title = titleFromFormat || titleFromMetadata || generateTitle(code);
+    // Prefer title from format over metadata comment
+    const title = canvasTitle || htmlTitle || titleFromMetadata || generateTitle(code, isHtmlBlock);
 
     blocks.push({
       code,
@@ -75,6 +103,7 @@ export function extractCanvasBlocks(content: string): ParsedCanvasBlock[] {
       description,
       startIndex: match.index,
       endIndex: match.index + match[0].length,
+      isHtmlBlock,
     });
   }
 
@@ -84,7 +113,16 @@ export function extractCanvasBlocks(content: string): ParsedCanvasBlock[] {
 /**
  * Generates a title from the code content if none is provided.
  */
-function generateTitle(code: string): string {
+function generateTitle(code: string, isHtmlBlock = false): string {
+  // For HTML blocks, try to extract title from <title> tag
+  if (isHtmlBlock) {
+    const titleMatch = code.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch?.[1]) {
+      return titleMatch[1].trim();
+    }
+    return "Interactive Visualization";
+  }
+
   // Look for common patterns
   if (code.includes("particle")) {
     return "Particle Animation";

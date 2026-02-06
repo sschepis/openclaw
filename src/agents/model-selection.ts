@@ -287,6 +287,20 @@ export function buildAllowedModelSet(params: {
     return Object.keys(modelMap);
   })();
   const allowAny = rawAllowlist.length === 0;
+
+  // Identify environment variable overrides that are not in the catalog
+  const envOverrides: ModelCatalogEntry[] = [];
+  for (const [provider, envVar] of Object.entries(MODEL_OVERRIDE_ENV_MAP)) {
+    const model = process.env[envVar]?.trim();
+    if (model) {
+      const key = modelKey(provider, model);
+      const inCatalog = params.catalog.some((entry) => modelKey(entry.provider, entry.id) === key);
+      if (!inCatalog) {
+        envOverrides.push({ id: model, name: model, provider });
+      }
+    }
+  }
+
   const defaultModel = params.defaultModel?.trim();
   const defaultKey =
     defaultModel && params.defaultProvider
@@ -298,9 +312,12 @@ export function buildAllowedModelSet(params: {
     if (defaultKey) {
       catalogKeys.add(defaultKey);
     }
+    for (const entry of envOverrides) {
+      catalogKeys.add(modelKey(entry.provider, entry.id));
+    }
     return {
       allowAny: true,
-      allowedCatalog: params.catalog,
+      allowedCatalog: [...params.catalog, ...envOverrides],
       allowedKeys: catalogKeys,
     };
   }
@@ -325,6 +342,14 @@ export function buildAllowedModelSet(params: {
     }
   }
 
+  // Add environment variable overrides to the allowed set
+  for (const [provider, envVar] of Object.entries(MODEL_OVERRIDE_ENV_MAP)) {
+    const model = process.env[envVar]?.trim();
+    if (model) {
+      allowedKeys.add(modelKey(provider, model));
+    }
+  }
+
   if (defaultKey) {
     allowedKeys.add(defaultKey);
   }
@@ -332,14 +357,18 @@ export function buildAllowedModelSet(params: {
   const allowedCatalog = params.catalog.filter((entry) =>
     allowedKeys.has(modelKey(entry.provider, entry.id)),
   );
+  allowedCatalog.push(...envOverrides);
 
   if (allowedCatalog.length === 0 && allowedKeys.size === 0) {
     if (defaultKey) {
       catalogKeys.add(defaultKey);
     }
+    for (const entry of envOverrides) {
+      catalogKeys.add(modelKey(entry.provider, entry.id));
+    }
     return {
       allowAny: true,
-      allowedCatalog: params.catalog,
+      allowedCatalog: [...params.catalog, ...envOverrides],
       allowedKeys: catalogKeys,
     };
   }

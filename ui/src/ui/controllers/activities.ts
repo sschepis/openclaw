@@ -9,6 +9,12 @@ export type ActivitiesState = {
   activitiesError: string | null;
 };
 
+export type ActivityActionResult = {
+  ok: boolean;
+  promptSent?: string;
+  error?: string;
+};
+
 export async function loadActivities(
   state: ActivitiesState,
   options?: {
@@ -47,7 +53,7 @@ export async function executeAction(
   sessionKey: string,
   actionId: string,
   parameters?: Record<string, unknown>,
-): Promise<{ ok: boolean; promptSent?: string; error?: string }> {
+): Promise<ActivityActionResult> {
   if (!state.client || !state.connected) {
     return { ok: false, error: "Not connected" };
   }
@@ -64,6 +70,106 @@ export async function executeAction(
     await loadActivities(state);
 
     return { ok: res?.ok ?? false, promptSent: res?.promptSent };
+  } catch (err) {
+    state.activitiesError = String(err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
+ * Update session model for an activity.
+ */
+export async function updateActivityModel(
+  state: ActivitiesState,
+  sessionKey: string,
+  model: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!state.client || !state.connected) {
+    return { ok: false, error: "Not connected" };
+  }
+
+  try {
+    await state.client.request("sessions.patch", {
+      key: sessionKey,
+      patch: { model },
+    });
+    // Refresh activities after model change
+    await loadActivities(state);
+    return { ok: true };
+  } catch (err) {
+    state.activitiesError = String(err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
+ * Pause an activity (set abortedLastRun to true).
+ */
+export async function pauseActivity(
+  state: ActivitiesState,
+  sessionKey: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!state.client || !state.connected) {
+    return { ok: false, error: "Not connected" };
+  }
+
+  try {
+    await state.client.request("sessions.patch", {
+      key: sessionKey,
+      patch: { abortedLastRun: true },
+    });
+    // Refresh activities after pause
+    await loadActivities(state);
+    return { ok: true };
+  } catch (err) {
+    state.activitiesError = String(err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
+ * Resume an activity (set abortedLastRun to false).
+ */
+export async function resumeActivity(
+  state: ActivitiesState,
+  sessionKey: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!state.client || !state.connected) {
+    return { ok: false, error: "Not connected" };
+  }
+
+  try {
+    await state.client.request("sessions.patch", {
+      key: sessionKey,
+      patch: { abortedLastRun: false },
+    });
+    // Refresh activities after resume
+    await loadActivities(state);
+    return { ok: true };
+  } catch (err) {
+    state.activitiesError = String(err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
+ * Delete an activity (delete session).
+ */
+export async function deleteActivity(
+  state: ActivitiesState,
+  sessionKey: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!state.client || !state.connected) {
+    return { ok: false, error: "Not connected" };
+  }
+
+  try {
+    await state.client.request("sessions.delete", {
+      key: sessionKey,
+    });
+    // Refresh activities after delete
+    await loadActivities(state);
+    return { ok: true };
   } catch (err) {
     state.activitiesError = String(err);
     return { ok: false, error: String(err) };

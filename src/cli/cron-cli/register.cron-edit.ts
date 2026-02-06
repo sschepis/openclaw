@@ -3,6 +3,7 @@ import { danger } from "../../globals.js";
 import { sanitizeAgentId } from "../../routing/session-key.js";
 import { defaultRuntime } from "../../runtime.js";
 import { addGatewayClientOptions, callGatewayFromCli } from "../gateway-rpc.js";
+import { collectOption } from "../program/helpers.js";
 import {
   getCronChannelOptions,
   parseAtMs,
@@ -36,6 +37,14 @@ export function registerCronEditCommand(cron: Command) {
       .option("--session <target>", "Session target (main|isolated)")
       .option("--agent <id>", "Set agent id")
       .option("--clear-agent", "Unset agent and use default", false)
+      .option("--add-secondary-agent <id>", "Add secondary agent (repeatable)", collectOption, [])
+      .option(
+        "--remove-secondary-agent <id>",
+        "Remove secondary agent (repeatable)",
+        collectOption,
+        [],
+      )
+      .option("--clear-secondary-agents", "Remove all secondary agents", false)
       .option("--wake <mode>", "Wake mode (now|next-heartbeat)")
       .option("--at <when>", "Set one-shot time (ISO) or duration like 20m")
       .option("--every <duration>", "Set interval duration like 10m")
@@ -114,6 +123,28 @@ export function registerCronEditCommand(cron: Command) {
           }
           if (opts.clearAgent) {
             patch.agentId = null;
+          }
+
+          // Handle secondary agents modifications
+          const addSecondary = Array.isArray(opts.addSecondaryAgent)
+            ? opts.addSecondaryAgent
+                .filter((a: unknown): a is string => typeof a === "string" && a.trim().length > 0)
+                .map((a: string) => sanitizeAgentId(a.trim()))
+            : [];
+          const removeSecondary = Array.isArray(opts.removeSecondaryAgent)
+            ? opts.removeSecondaryAgent
+                .filter((a: unknown): a is string => typeof a === "string" && a.trim().length > 0)
+                .map((a: string) => sanitizeAgentId(a.trim()))
+            : [];
+
+          if (addSecondary.length > 0) {
+            patch.secondaryAgentsToAdd = addSecondary;
+          }
+          if (removeSecondary.length > 0) {
+            patch.secondaryAgentsToRemove = removeSecondary;
+          }
+          if (opts.clearSecondaryAgents) {
+            patch.secondaryAgents = [];
           }
 
           const scheduleChosen = [opts.at, opts.every, opts.cron].filter(Boolean).length;

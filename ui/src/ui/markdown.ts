@@ -87,6 +87,7 @@ const allowedTags = [
   "br",
   "code",
   "del",
+  "div",
   "em",
   "h1",
   "h2",
@@ -94,6 +95,7 @@ const allowedTags = [
   "h4",
   "hr",
   "i",
+  "img",
   "li",
   "ol",
   "p",
@@ -109,7 +111,20 @@ const allowedTags = [
   "span",
 ];
 
-const allowedAttrs = ["class", "href", "rel", "target", "title", "start", "style"];
+const allowedAttrs = [
+  "alt",
+  "class",
+  "height",
+  "href",
+  "loading",
+  "rel",
+  "src",
+  "start",
+  "style",
+  "target",
+  "title",
+  "width",
+];
 
 let hooksInstalled = false;
 const MARKDOWN_CHAR_LIMIT = 140_000;

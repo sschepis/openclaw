@@ -72,10 +72,11 @@ export async function loadModelCatalog(params?: {
       const authStorage = new piSdk.AuthStorage(join(agentDir, "auth.json"));
       const registry = new piSdk.ModelRegistry(authStorage, join(agentDir, "models.json")) as
         | {
-            getAll: () => Array<DiscoveredModel>;
+            getAvailable: () => Array<DiscoveredModel>;
           }
         | Array<DiscoveredModel>;
-      const entries = Array.isArray(registry) ? registry : registry.getAll();
+      // Use getAvailable() to only return models with authentication configured
+      const entries = Array.isArray(registry) ? registry : registry.getAvailable();
       for (const entry of entries) {
         const id = String(entry?.id ?? "").trim();
         if (!id) {

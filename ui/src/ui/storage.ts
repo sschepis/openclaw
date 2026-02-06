@@ -1,4 +1,5 @@
 const KEY = "openclaw.control.settings.v1";
+const DRAFT_KEY_PREFIX = "openclaw.chat.draft.";
 
 import type { ThemeMode } from "./theme";
 
@@ -10,6 +11,7 @@ export type UiSettings = {
   theme: ThemeMode;
   chatFocusMode: boolean;
   chatShowThinking: boolean;
+  chatHideCron: boolean;
   splitRatio: number; // Sidebar split ratio (0.4 to 0.7, default 0.6)
   navCollapsed: boolean; // Collapsible sidebar state
   navWidth: number; // Sidebar width in pixels (160 to 400, default 220)
@@ -30,6 +32,7 @@ export function loadSettings(): UiSettings {
     theme: "system",
     chatFocusMode: false,
     chatShowThinking: true,
+    chatHideCron: false,
     splitRatio: 0.6,
     navCollapsed: false,
     navWidth: 220,
@@ -67,6 +70,8 @@ export function loadSettings(): UiSettings {
         typeof parsed.chatShowThinking === "boolean"
           ? parsed.chatShowThinking
           : defaults.chatShowThinking,
+      chatHideCron:
+        typeof parsed.chatHideCron === "boolean" ? parsed.chatHideCron : defaults.chatHideCron,
       splitRatio:
         typeof parsed.splitRatio === "number" &&
         parsed.splitRatio >= 0.4 &&
@@ -91,4 +96,47 @@ export function loadSettings(): UiSettings {
 
 export function saveSettings(next: UiSettings) {
   localStorage.setItem(KEY, JSON.stringify(next));
+}
+
+/**
+ * Saves a draft message for a specific session key to localStorage.
+ * This allows users to navigate away and return without losing their in-progress message.
+ */
+export function saveDraft(sessionKey: string, draft: string) {
+  const key = `${DRAFT_KEY_PREFIX}${sessionKey}`;
+  if (!draft.trim()) {
+    localStorage.removeItem(key);
+    return;
+  }
+  try {
+    localStorage.setItem(key, draft);
+  } catch {
+    // Ignore storage errors (e.g., quota exceeded)
+  }
+}
+
+/**
+ * Loads a saved draft message for a specific session key from localStorage.
+ * Returns an empty string if no draft exists.
+ */
+export function loadDraft(sessionKey: string): string {
+  const key = `${DRAFT_KEY_PREFIX}${sessionKey}`;
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Clears a saved draft for a specific session key from localStorage.
+ * Called after a message is successfully sent.
+ */
+export function clearDraft(sessionKey: string) {
+  const key = `${DRAFT_KEY_PREFIX}${sessionKey}`;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors
+  }
 }

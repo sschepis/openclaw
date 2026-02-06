@@ -27,12 +27,18 @@ import { getSlashCommands } from "../components/slash-autocomplete/default-slash
 import "../components/resizable-divider";
 import "../components/slash-autocomplete/slash-autocomplete";
 import { icons } from "../icons";
+import { loadDraft, saveDraft } from "../storage";
 import { renderMarkdownSidebar } from "./markdown-sidebar";
 
 export type CompactionIndicatorStatus = {
   active: boolean;
   startedAt: number | null;
   completedAt: number | null;
+};
+
+export type ModelOption = {
+  id: string;
+  provider: string;
 };
 
 export type ChatProps = {
@@ -59,6 +65,10 @@ export type ChatProps = {
   disabledReason: string | null;
   error: string | null;
   sessions: SessionsListResult | null;
+  // Model/provider selection
+  availableModels?: ModelOption[];
+  currentModel?: string | null;
+  onModelChange?: (modelId: string | null) => void;
   // Focus mode
   focusMode: boolean;
   // Sidebar state
@@ -624,11 +634,37 @@ export function renderChat(props: ChatProps) {
             )}
             ${renderConversationStatus(computeConversationStatus(props.sending, props.stream, props.cronJobs))}
           </div>
+          <div class="chat-header__center">
+            ${props.availableModels && props.onModelChange
+              ? html`
+                <select
+                  class="chat-model-select"
+                  .value=${props.currentModel ?? ""}
+                  @change=${(e: Event) => {
+                    const value = (e.target as HTMLSelectElement).value;
+                    props.onModelChange?.(value || null);
+                  }}
+                  title="Select AI model"
+                >
+                  <option value="">Default Model</option>
+                  ${props.availableModels.map(
+                    (m) => html`
+                      <option value=${m.id} ?selected=${props.currentModel === m.id}>
+                        ${m.id} (${m.provider})
+                      </option>
+                    `,
+                  )}
+                </select>
+              `
+              : nothing
+            }
+          </div>
           <div class="chat-header__right">
             <button
               class="btn--icon"
               @click=${props.onNewSession}
               title="New Session"
+              aria-label="New Session"
             >
               ${icons.plus}
             </button>
@@ -636,6 +672,7 @@ export function renderChat(props: ChatProps) {
               class="btn--icon"
               @click=${props.onSettings}
               title="Session Settings"
+              aria-label="Session Settings"
             >
               ${icons.settings}
             </button>
@@ -785,6 +822,7 @@ export function renderChat(props: ChatProps) {
                     input?.click();
                   }}
                   title="Attach file"
+                  aria-label="Attach file"
                 >
                   ${icons.paperclip}
                 </button>
@@ -819,6 +857,21 @@ export function renderChat(props: ChatProps) {
                   const target = e.target as HTMLTextAreaElement;
                   adjustTextareaHeight(target);
                   props.onDraftChange(target.value);
+                  // Save draft to localStorage for persistence across navigation
+                  saveDraft(props.sessionKey, target.value);
+                }}
+                @focus=${(e: FocusEvent) => {
+                  // Restore saved draft on focus if current draft is empty
+                  const target = e.target as HTMLTextAreaElement;
+                  if (!props.draft.trim()) {
+                    const savedDraft = loadDraft(props.sessionKey);
+                    if (savedDraft) {
+                      props.onDraftChange(savedDraft);
+                      // Update the textarea value and height
+                      target.value = savedDraft;
+                      adjustTextareaHeight(target);
+                    }
+                  }
                 }}
                 @paste=${(e: ClipboardEvent) => handlePaste(e, props, visionSupported)}
                 placeholder=${composePlaceholder}
@@ -832,6 +885,7 @@ export function renderChat(props: ChatProps) {
                     class="btn--icon"
                     @click=${props.onToggleMic}
                     title=${props.isListening ? "Stop listening" : "Start listening"}
+                    aria-label=${props.isListening ? "Stop listening" : "Start listening"}
                     style=${props.isListening ? "color: var(--accent); border-color: var(--accent);" : ""}
                   >
                     ${props.isListening ? icons.micOff : icons.mic}

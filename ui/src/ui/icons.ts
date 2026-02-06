@@ -474,16 +474,22 @@ export const icons = {
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </svg>
   `,
+  // Canvas visualization icon
   canvas: html`
     <svg viewBox="0 0 24 24">
-      <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-      <path d="M7 7h4v4H7z"></path>
-      <path d="M13 7h4v4h-4z"></path>
-      <path d="M7 13h4v4H7z"></path>
-      <path d="M13 13h4v4h-4z"></path>
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      <circle cx="8" cy="8" r="1.5"></circle>
+      <path d="M21 15l-5-5L5 21"></path>
     </svg>
   `,
-} as const;
+  // Code bracket icon for code blocks
+  code: html`
+    <svg viewBox="0 0 24 24">
+      <polyline points="16 18 22 12 16 6"></polyline>
+      <polyline points="8 6 2 12 8 18"></polyline>
+    </svg>
+  `,
+};
 
 export type IconName = keyof typeof icons;
 

@@ -5,6 +5,7 @@ import type { CanvasVisualization } from "./components/canvas-visualization";
 import type { DevicePairingList } from "./controllers/devices";
 import type { ExecApprovalRequest } from "./controllers/exec-approval";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals";
+import type { FileTreeNode } from "./controllers/files";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
 import type { Tab } from "./navigation";
 import type { ResolvedTheme, ThemeMode } from "./theme";
@@ -115,12 +116,17 @@ import { resolveInjectedAssistantIdentity } from "./assistant-identity";
 import {
   loadActivities as loadActivitiesInternal,
   executeAction as executeActionInternal,
+  updateActivityModel as updateActivityModelInternal,
+  pauseActivity as pauseActivityInternal,
+  resumeActivity as resumeActivityInternal,
+  deleteActivity as deleteActivityInternal,
 } from "./controllers/activities";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity";
 import {
   initiateDeleteSession,
   executeDeleteSession,
   cancelDeleteSession,
+  archiveSession,
 } from "./controllers/sessions";
 import { SkillMessage } from "./controllers/skills";
 import { type SpeechRecognition } from "./speech";
@@ -204,6 +210,8 @@ export class OpenClawApp extends LitElement {
   @state() slashAutocompleteMode: "slash" | "mention" = "slash";
   /** Slash autocomplete query (text after / or @) */
   @state() slashAutocompleteQuery = "";
+  @state() addAgentModalOpen = false;
+  @state() addAgentForm = { handle: "", model: "" };
 
   /** Canvas visualizations created in this session */
   @state() visualizations: CanvasVisualization[] = [];
@@ -297,6 +305,27 @@ export class OpenClawApp extends LitElement {
   @state() secretsForm: { key: string; value: string } | null = null;
   @state() secretsSaving = false;
 
+  @state() filesLoading = false;
+  @state() filesTree: FileTreeNode[] = [];
+  @state() filesError: string | null = null;
+  @state() filesEditorPath: string | null = null;
+  @state() filesEditorContent = "";
+  @state() filesEditorOriginal = "";
+  @state() filesEditorLoading = false;
+  @state() filesEditorSaving = false;
+  @state() filesEditorDirty = false;
+  @state() filesBusy = false;
+  @state() filesNewDialog: {
+    parentPath: string;
+    type: "file" | "directory";
+    name: string;
+  } | null = null;
+  @state() filesRenameDialog: {
+    path: string;
+    newName: string;
+  } | null = null;
+  @state() filesSelectedPath: string | null = null;
+
   @state() cronLoading = false;
   @state() cronJobs: CronJob[] = [];
   @state() cronStatus: CronStatus | null = null;
@@ -305,6 +334,9 @@ export class OpenClawApp extends LitElement {
   @state() cronRunsJobId: string | null = null;
   @state() cronRuns: CronRunLogEntry[] = [];
   @state() cronBusy = false;
+  @state() cronFilter = "";
+  @state() cronView: "jobs" | "runs" | "add" = "jobs";
+  @state() cronExpandedJob: string | null = null;
 
   @state() skillsLoading = false;
   @state() skillsReport: SkillStatusReport | null = null;
@@ -690,6 +722,41 @@ export class OpenClawApp extends LitElement {
     this.activitiesExpandedSummaries = newSet;
   }
 
+  /** Change model for an activity */
+  async handleActivityModelChange(sessionKey: string, model: string) {
+    await updateActivityModelInternal(this, sessionKey, model);
+  }
+
+  /** Pause an activity */
+  async handleActivityPause(sessionKey: string) {
+    await pauseActivityInternal(this, sessionKey);
+  }
+
+  /** Resume an activity */
+  async handleActivityResume(sessionKey: string) {
+    await resumeActivityInternal(this, sessionKey);
+  }
+
+  /** Delete an activity */
+  async handleActivityDelete(sessionKey: string) {
+    await deleteActivityInternal(this, sessionKey);
+  }
+
+  /** Send a message to an activity's chat session */
+  async handleActivitySendMessage(sessionKey: string, message: string) {
+    // Switch to the chat tab with this session
+    this.sessionKey = sessionKey;
+    this.chatMessages = [];
+    this.chatLoading = true;
+    this.setTab("chat");
+    
+    // Wait for the tab switch to complete, then send the message
+    setTimeout(() => {
+      this.chatMessage = message;
+      void this.handleSendChat();
+    }, 200);
+  }
+
   /**
    * Adds an action message to the current chat session.
    */
@@ -740,6 +807,14 @@ export class OpenClawApp extends LitElement {
   handleDeleteSessionCancel() {
     // oxlint-disable-next-line typescript/no-explicit-any -- session delete functions use broader type
     cancelDeleteSession(this as any);
+  }
+
+  /**
+   * Archive a session (hide from default chat list without deleting).
+   */
+  async handleArchiveSession(key: string) {
+    // oxlint-disable-next-line typescript/no-explicit-any -- session archive functions use broader type
+    await archiveSession(this as any, key);
   }
 
   /**
@@ -831,6 +906,101 @@ export class OpenClawApp extends LitElement {
     this.slashAutocompleteOpen = false;
     this.slashAutocompleteQuery = "";
   }
+
+  /**
+   * Open the add agent modal.
+   */
+  handleOpenAddAgentModal() {
+    this.addAgentModalOpen = true;
+    this.addAgentForm = { handle: "", model: "" };
+  }
+
+  /**
+   * Close the add agent modal.
+   */
+  handleCloseAddAgentModal() {
+    this.addAgentModalOpen = false;
+  }
+
+  /**
+   * Update the add agent form fields.
+   */
+  handleAddAgentFormUpdate(partial: Partial<{ handle: string; model: string }>) {
+    this.addAgentForm = { ...this.addAgentForm, ...partial };
+  }
+
+  /**
+   * Add an agent to the current chat with the specified handle and model.
+   */
+  async handleAddAgent(handle: string, model: string) {
+    this.addAgentModalOpen = false;
+    const command = model
+      ? `/add-agent @${handle} --model ${model}`
+      : `/add-agent @${handle}`;
+    
+    // Send the command message
+    await this.handleSendChat(command);
+  }
+
+  /**
+   * Alias for handleOpenAddAgentModal for command palette compatibility.
+   */
+  onAddAgent = () => {
+    this.handleOpenAddAgentModal();
+  };
+
+  /**
+   * Command palette context methods
+   */
+  onNewSession = () => {
+    void this.handleNewSession();
+  };
+
+  onSwitchSession = (sessionKey: string) => {
+    this.sessionKey = sessionKey;
+    this.chatMessage = "";
+    this.chatAttachments = [];
+    this.chatStream = null;
+    this.chatStreamStartedAt = null;
+    this.chatRunId = null;
+    this.chatQueue = [];
+    this.chatMessages = [];
+    this.chatRecommendations = [];
+    this.chatLoading = true;
+    this.resetToolStream();
+    this.resetChatScroll();
+    this.applySettings({
+      ...this.settings,
+      sessionKey,
+      lastActiveSessionKey: sessionKey,
+    });
+    void this.loadAssistantIdentity();
+  };
+
+  onNavigate = (tab: Tab) => {
+    this.setTab(tab);
+  };
+
+  onOpenSettings = () => {
+    this.handleToggleSettings();
+  };
+
+  onToggleTheme = () => {
+    const nextTheme: ThemeMode = this.theme === "dark" ? "light" : this.theme === "light" ? "system" : "dark";
+    this.setTheme(nextTheme);
+  };
+
+  getCurrentTab = () => {
+    return this.tab;
+  };
+
+  getSessionKeys = () => {
+    const sessions = this.sessionsResult?.sessions ?? [];
+    return sessions.map((s) => ({
+      key: s.key,
+      displayName: s.displayName || s.key,
+    }));
+  };
 
   /**
    * Toggle the context sidebar open/closed.

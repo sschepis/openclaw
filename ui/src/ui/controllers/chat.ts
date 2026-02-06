@@ -4,6 +4,11 @@ import type { ChatAttachment } from "../ui-types";
 import { extractText } from "../chat/message-extract";
 import { generateUUID } from "../uuid";
 
+export type ModelInfo = {
+  id: string;
+  provider: string;
+};
+
 export type ChatState = {
   client: GatewayBrowserClient | null;
   connected: boolean;
@@ -19,6 +24,7 @@ export type ChatState = {
   chatStreamStartedAt: number | null;
   lastError: string | null;
   chatRecommendations: TaskRecommendation[];
+  debugModels: unknown[];
 };
 
 export type ChatEventPayload = {
@@ -57,6 +63,23 @@ export async function fetchRecommendations(state: ChatState) {
   } catch (err) {
     console.error("Failed to fetch recommendations", err);
     state.chatRecommendations = [];
+  }
+}
+
+/**
+ * Loads available AI models for the model selector dropdown.
+ * This fetches the model catalog from the gateway so users can switch models in chat.
+ */
+export async function loadModels(state: ChatState) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  try {
+    const res = (await state.client.request("models.list", {})) as { models?: unknown[] };
+    state.debugModels = Array.isArray(res.models) ? res.models : [];
+  } catch (err) {
+    console.error("Failed to fetch models", err);
+    // Don't clear existing models on error - keep stale data for better UX
   }
 }
 

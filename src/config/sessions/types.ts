@@ -35,6 +35,10 @@ export type SessionEntry = {
   sessionFile?: string;
   /** Parent session key that spawned this session (used for sandbox session-tool scoping). */
   spawnedBy?: string;
+  /** When true, session is archived and hidden from default chat list. */
+  archived?: boolean;
+  /** Timestamp (ms) when session was archived. */
+  archivedAt?: number;
   systemSent?: boolean;
   abortedLastRun?: boolean;
   chatType?: SessionChatType;

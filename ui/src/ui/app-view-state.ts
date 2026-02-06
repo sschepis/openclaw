@@ -1,8 +1,10 @@
 import type { EventLogEntry } from "./app-events";
+import type { CanvasVisualization } from "./components/canvas-visualization";
 import type { ThinkingState } from "./components/thinking-panel";
 import type { DevicePairingList } from "./controllers/devices";
 import type { ExecApprovalRequest } from "./controllers/exec-approval";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals";
+import type { FileTreeNode } from "./controllers/files";
 import type { SkillMessage } from "./controllers/skills";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
 import type { Tab } from "./navigation";
@@ -158,6 +160,27 @@ export type AppViewState = {
     value: string;
   } | null;
   secretsSaving: boolean;
+  // Files manager state
+  filesLoading: boolean;
+  filesTree: FileTreeNode[];
+  filesError: string | null;
+  filesEditorPath: string | null;
+  filesEditorContent: string;
+  filesEditorOriginal: string;
+  filesEditorLoading: boolean;
+  filesEditorSaving: boolean;
+  filesEditorDirty: boolean;
+  filesBusy: boolean;
+  filesNewDialog: {
+    parentPath: string;
+    type: "file" | "directory";
+    name: string;
+  } | null;
+  filesRenameDialog: {
+    path: string;
+    newName: string;
+  } | null;
+  filesSelectedPath: string | null;
   cronLoading: boolean;
   cronJobs: CronJob[];
   cronStatus: CronStatus | null;
@@ -166,6 +189,9 @@ export type AppViewState = {
   cronRunsJobId: string | null;
   cronRuns: CronRunLogEntry[];
   cronBusy: boolean;
+  cronFilter: string;
+  cronView: "jobs" | "runs" | "add";
+  cronExpandedJob: string | null;
   skillsLoading: boolean;
   skillsReport: SkillStatusReport | null;
   skillsError: string | null;
@@ -296,6 +322,11 @@ export type AppViewState = {
     parameters?: Record<string, unknown>,
   ) => Promise<void>;
   handleToggleActivitySummary: (sessionKey: string) => void;
+  handleActivityModelChange: (sessionKey: string, model: string) => Promise<void>;
+  handleActivityPause: (sessionKey: string) => Promise<void>;
+  handleActivityResume: (sessionKey: string) => Promise<void>;
+  handleActivityDelete: (sessionKey: string) => Promise<void>;
+  handleActivitySendMessage: (sessionKey: string, message: string) => Promise<void>;
   addActionMessage: (action: ActionMessage) => void;
   clearActionMessages: () => void;
   handleRenameSession: (key: string, newName: string) => Promise<void>;
@@ -305,14 +336,32 @@ export type AppViewState = {
   handleDeleteSessionExecute: () => Promise<void>;
   /** Cancel session deletion and close modal */
   handleDeleteSessionCancel: () => void;
+  /** Archive a session (hide from default chat list without deleting) */
+  handleArchiveSession: (key: string) => Promise<void>;
   configExpandedPaths: Set<string>;
   slashAutocompleteOpen: boolean;
   slashAutocompleteMode: "slash" | "mention";
   slashAutocompleteQuery: string;
+  addAgentModalOpen: boolean;
+  addAgentForm: {
+    handle: string;
+    model: string;
+  };
   handleSlashAutocompleteSelect: (suggestion: unknown) => void;
   handleSlashAutocompleteClose: () => void;
+  handleOpenAddAgentModal: () => void;
+  handleCloseAddAgentModal: () => void;
+  handleAddAgentFormUpdate: (partial: Partial<{ handle: string; model: string }>) => void;
+  handleAddAgent: (handle: string, model: string) => Promise<void>;
   handleConfigExpandToggle: (pathKey: string) => void;
   commandPaletteOpen: boolean;
   handleCloseCommandPalette: () => void;
   handleNavExpandToggle: (tab: string) => void;
+  // Context sidebar (right-hand panel) for visualizations and cron jobs
+  contextSidebarOpen: boolean;
+  visualizations: CanvasVisualization[];
+  selectedVisualization: CanvasVisualization | null;
+  handleToggleContextSidebar: () => void;
+  handleSelectVisualization: (viz: CanvasVisualization | null) => void;
+  handleOpenVisualization: (viz: CanvasVisualization) => void;
 };

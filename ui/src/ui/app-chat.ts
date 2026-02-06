@@ -8,6 +8,7 @@ import { resetToolStream } from "./app-tool-stream";
 import {
   abortChatRun,
   loadChatHistory,
+  loadModels,
   sendChatMessage,
   deleteMessage,
   deleteFromMessage,
@@ -16,6 +17,7 @@ import {
 } from "./controllers/chat";
 import { loadSessions } from "./controllers/sessions";
 import { normalizeBasePath } from "./navigation";
+import { clearDraft } from "./storage";
 import { generateUUID } from "./uuid";
 
 type ChatHost = {
@@ -259,6 +261,8 @@ export async function handleSendChat(
     host.chatMessage = "";
     // Clear attachments when sending
     host.chatAttachments = [];
+    // Clear saved draft from localStorage
+    clearDraft(host.sessionKey);
   }
 
   if (isChatBusy(host)) {
@@ -281,6 +285,8 @@ export async function refreshChat(host: ChatHost) {
     loadChatHistory(host as unknown as OpenClawApp),
     // Load all sessions (no activeMinutes filter) to show full session list in chat sidebar
     loadSessions(host as unknown as OpenClawApp),
+    // Load available models for the model selector dropdown
+    loadModels(host as unknown as OpenClawApp),
     refreshChatAvatar(host),
   ]);
   scheduleChatScroll(host as unknown as Parameters<typeof scheduleChatScroll>[0], true);

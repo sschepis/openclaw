@@ -5,7 +5,7 @@ import { danger } from "../../globals.js";
 import { sanitizeAgentId } from "../../routing/session-key.js";
 import { defaultRuntime } from "../../runtime.js";
 import { addGatewayClientOptions, callGatewayFromCli } from "../gateway-rpc.js";
-import { parsePositiveIntOrUndefined } from "../program/helpers.js";
+import { collectOption, parsePositiveIntOrUndefined } from "../program/helpers.js";
 import {
   getCronChannelOptions,
   parseAtMs,
@@ -69,6 +69,7 @@ export function registerCronAddCommand(cron: Command) {
       .option("--disabled", "Create job disabled", false)
       .option("--delete-after-run", "Delete one-shot job after it succeeds", false)
       .option("--agent <id>", "Agent id for this job")
+      .option("--secondary-agent <id>", "Add secondary agent (repeatable)", collectOption, [])
       .option("--session <target>", "Session target (main|isolated)", "main")
       .option("--wake <mode>", "Wake mode (now|next-heartbeat)", "next-heartbeat")
       .option("--at <when>", "Run once at time (ISO) or +duration (e.g. 20m)")
@@ -147,6 +148,12 @@ export function registerCronAddCommand(cron: Command) {
               ? sanitizeAgentId(opts.agent.trim())
               : undefined;
 
+          const secondaryAgents = Array.isArray(opts.secondaryAgent)
+            ? opts.secondaryAgent
+                .filter((a): a is string => typeof a === "string" && a.trim().length > 0)
+                .map((a) => sanitizeAgentId(a.trim()))
+            : [];
+
           const payload = (() => {
             const systemEvent = typeof opts.systemEvent === "string" ? opts.systemEvent.trim() : "";
             const message = typeof opts.message === "string" ? opts.message.trim() : "";
@@ -218,6 +225,7 @@ export function registerCronAddCommand(cron: Command) {
             enabled: !opts.disabled,
             deleteAfterRun: Boolean(opts.deleteAfterRun),
             agentId,
+            secondaryAgents: secondaryAgents.length > 0 ? secondaryAgents : undefined,
             schedule,
             sessionTarget,
             wakeMode,

@@ -116,14 +116,14 @@ export async function deleteSession(state: SessionsState, key: string) {
 }
 
 /**
- * Get display name for a session, falling back to a shortened key.
+ * Get display name for a session, falling back to the full key.
  */
 function getSessionDisplayName(session: { label?: string | null; key: string }): string {
   if (session.label && session.label.trim()) {
     return session.label.trim();
   }
-  // Show first 12 chars of key for display
-  return session.key.length > 12 ? session.key.slice(0, 12) + "…" : session.key;
+  // Return full key when no label is set
+  return session.key;
 }
 
 /**
@@ -160,11 +160,19 @@ export async function initiateDeleteSession(state: SessionsState, key: string) {
 
   // Query for child sessions (sessions spawned by this session)
   try {
-    const res = await state.client.request("sessions.list", {
+    // Add a timeout to prevent hanging indefinitely if gateway is slow
+    const listPromise = state.client.request("sessions.list", {
       spawnedBy: key,
       includeGlobal: false,
       includeUnknown: true,
     });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Request timed out")), 5000);
+    });
+
+    const res = await Promise.race([listPromise, timeoutPromise]);
+    
     const childSessions: Array<{ key: string; displayName: string }> = [];
     if (res && typeof res === "object" && "sessions" in res) {
       const sessions = (res as { sessions: Array<{ key: string; label?: string | null }> })
@@ -256,4 +264,26 @@ export async function executeDeleteSession(state: SessionsState) {
  */
 export function cancelDeleteSession(state: SessionsState) {
   state.sessionDeleteConfirm = null;
+}
+
+/**
+ * Archive a session by setting its archived flag to true.
+ * This removes the session from the default chat list without deleting it.
+ */
+export async function archiveSession(state: SessionsState, key: string) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  // Prevent archiving the Global session
+  if (isGlobalSessionKey(key)) {
+    window.alert("The Global session cannot be archived.");
+    return;
+  }
+
+  try {
+    await state.client.request("sessions.patch", { key, archived: true });
+    await loadSessions(state);
+  } catch (err) {
+    state.sessionsError = String(err);
+  }
 }

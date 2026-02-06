@@ -477,6 +477,7 @@
 }
 
 .nav-item-expandable__add,
+.nav-item-expandable__refresh,
 .nav-item-expandable__toggle {
   display: flex;
   align-items: center;
@@ -495,12 +496,14 @@
 }
 
 .nav-item-expandable__add:hover,
+.nav-item-expandable__refresh:hover,
 .nav-item-expandable__toggle:hover {
   color: var(--text);
   background: var(--bg-hover);
 }
 
 .nav-item-expandable__add svg,
+.nav-item-expandable__refresh svg,
 .nav-item-expandable__toggle svg {
   width: 14px;
   height: 14px;

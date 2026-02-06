@@ -563,6 +563,8 @@ export function listSessionsFromStore(params: {
   const includeUnknown = opts.includeUnknown === true;
   const includeDerivedTitles = opts.includeDerivedTitles === true;
   const includeLastMessage = opts.includeLastMessage === true;
+  // includeArchived: false (default) excludes archived, true includes only archived, undefined includes all
+  const includeArchived = opts.includeArchived;
   const spawnedBy = typeof opts.spawnedBy === "string" ? opts.spawnedBy : "";
   const label = typeof opts.label === "string" ? opts.label.trim() : "";
   const agentId = typeof opts.agentId === "string" ? normalizeAgentId(opts.agentId) : "";
@@ -606,6 +608,19 @@ export function listSessionsFromStore(params: {
         return true;
       }
       return entry?.label === label;
+    })
+    .filter(([, entry]) => {
+      // Filter by archived status:
+      // - includeArchived === false (default): exclude archived sessions
+      // - includeArchived === true: include only archived sessions
+      // - includeArchived === undefined/null: include all sessions
+      if (includeArchived === false) {
+        return !entry?.archived;
+      }
+      if (includeArchived === true) {
+        return entry?.archived === true;
+      }
+      return true;
     })
     .map(([key, entry]) => {
       const updatedAt = entry?.updatedAt ?? null;

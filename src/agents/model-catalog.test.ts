@@ -39,7 +39,7 @@ describe("loadModelCatalog", () => {
       return {
         AuthStorage: class {},
         ModelRegistry: class {
-          getAll() {
+          getAvailable() {
             return [{ id: "gpt-4.1", name: "GPT-4.1", provider: "openai" }];
           }
         },
@@ -64,7 +64,7 @@ describe("loadModelCatalog", () => {
         ({
           AuthStorage: class {},
           ModelRegistry: class {
-            getAll() {
+            getAvailable() {
               return [
                 { id: "gpt-4.1", name: "GPT-4.1", provider: "openai" },
                 {

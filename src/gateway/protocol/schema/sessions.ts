@@ -21,6 +21,11 @@ export const SessionsListParamsSchema = Type.Object(
     spawnedBy: Type.Optional(NonEmptyString),
     agentId: Type.Optional(NonEmptyString),
     search: Type.Optional(Type.String()),
+    /**
+     * Filter by archived status. If true, only return archived sessions.
+     * If false (default), exclude archived sessions. If undefined/null, return all.
+     */
+    includeArchived: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -77,6 +82,8 @@ export const SessionsPatchParamsSchema = Type.Object(
     groupActivation: Type.Optional(
       Type.Union([Type.Literal("mention"), Type.Literal("always"), Type.Null()]),
     ),
+    /** Mark session as archived (hidden from default chat list) */
+    archived: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );

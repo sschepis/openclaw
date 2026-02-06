@@ -83,6 +83,13 @@ const BASE_METHODS = [
   "chat.abort",
   "chat.send",
   "chat.delete",
+  // Files
+  "files.list",
+  "files.read",
+  "files.write",
+  "files.create",
+  "files.delete",
+  "files.move",
 ];
 
 export function listGatewayMethods(): string[] {

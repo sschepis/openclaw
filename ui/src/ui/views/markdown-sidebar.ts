@@ -1,7 +1,9 @@
 import { html } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { ref } from "lit/directives/ref.js";
 import { icons } from "../icons";
 import { toSanitizedMarkdownHtml } from "../markdown";
+import { withCopyButtons } from "../directives/with-copy-buttons";
 
 export type MarkdownSidebarProps = {
   content: string | null;
@@ -29,7 +31,7 @@ export function renderMarkdownSidebar(props: MarkdownSidebarProps) {
               </button>
             `
             : props.content
-              ? html`<div class="sidebar-markdown">${unsafeHTML(toSanitizedMarkdownHtml(props.content))}</div>`
+              ? html`<div class="sidebar-markdown" ${ref(withCopyButtons())}>${unsafeHTML(toSanitizedMarkdownHtml(props.content))}</div>`
               : html`
                   <div class="muted">No content available</div>
                 `

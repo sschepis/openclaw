@@ -53,11 +53,11 @@
 /* Main sidebar panel */
 .context-sidebar {
   position: fixed;
-  top: 0;
+  top: var(--shell-topbar-height, 56px);
   right: 0;
   bottom: 0;
   width: 280px;
-  z-index: 99;
+  z-index: 30;
 
   display: flex;
   flex-direction: column;

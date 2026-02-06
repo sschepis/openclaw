@@ -1,0 +1,205 @@
+/* ===========================================
+   Copy Button Component
+   =========================================== 
+   
+   A reusable copy-to-clipboard button with visual feedback.
+   Designed for code blocks but can be used anywhere.
+*/
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+}
+
+.copy-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.copy-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.copy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Size variants */
+.copy-btn--sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.copy-btn--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Icon styling */
+.copy-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* Text label */
+.copy-btn__text {
+  font-size: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* State: Copying (loading) */
+.copy-btn--copying {
+  color: var(--muted);
+}
+
+.copy-btn--copying svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* State: Success */
+.copy-btn--success {
+  background: var(--ok-subtle);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: var(--ok);
+}
+
+.copy-btn--success:hover:not(:disabled) {
+  background: var(--ok-subtle);
+  color: var(--ok);
+}
+
+/* State: Error */
+.copy-btn--error {
+  background: var(--danger-subtle);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+}
+
+.copy-btn--error:hover:not(:disabled) {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+
+/* ===========================================
+   Code Block Copy Button (Positioned)
+   =========================================== */
+
+.code-block-wrapper {
+  position: relative;
+}
+
+.code-block-wrapper .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) ease,
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.code-block-wrapper:hover .copy-btn,
+.code-block-wrapper .copy-btn:focus-visible,
+.code-block-wrapper .copy-btn--success,
+.code-block-wrapper .copy-btn--error {
+  opacity: 1;
+}
+
+/* Dark mode adjustments */
+.code-block-wrapper .copy-btn {
+  background: var(--secondary);
+  border-color: var(--border);
+}
+
+.code-block-wrapper .copy-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+/* ===========================================
+   Chat Text Copy Button (inline)
+   =========================================== */
+
+.chat-text pre {
+  position: relative;
+}
+
+.chat-text pre .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  z-index: 5;
+  transition:
+    opacity var(--duration-fast) ease,
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+.chat-text pre:hover .copy-btn,
+.chat-text pre .copy-btn:focus-visible,
+.chat-text pre .copy-btn--success,
+.chat-text pre .copy-btn--error {
+  opacity: 1;
+}
+
+/* Light theme adjustments */
+:root[data-theme="light"] .copy-btn {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] .copy-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+:root[data-theme="light"] .code-block-wrapper .copy-btn {
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ===========================================
+   Reduced Motion
+   =========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-btn--copying svg {
+    animation: none;
+  }
+  
+  .copy-btn:active:not(:disabled) {
+    transform: none;
+  }
+}

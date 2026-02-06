@@ -26,7 +26,13 @@ export function readSessionMessages(
     try {
       const parsed = JSON.parse(line);
       if (parsed?.message) {
-        messages.push(parsed.message);
+        // Inject the transcript entry's id into the message so the UI can reference it
+        // for operations like delete/edit. The id is stored at the entry level, not in message.
+        const msg = parsed.message as Record<string, unknown>;
+        if (typeof parsed.id === "string" && !msg.id) {
+          msg.id = parsed.id;
+        }
+        messages.push(msg);
       }
     } catch {
       // ignore bad lines

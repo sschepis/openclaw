@@ -1,0 +1,528 @@
+/* ===========================================
+   Micro-Interactions - Polish & Feedback
+   =========================================== 
+   
+   This file provides enhanced micro-interactions for:
+   1. Button press/active states with tactile feedback
+   2. List entrance animations with stagger
+   3. Panel expand/collapse transitions
+   4. Focus ring animations
+   5. Ripple effects
+   6. State transitions
+*/
+
+/* ===========================================
+   Button Interactions - Tactile Feedback
+   =========================================== */
+
+/* Enhanced button active state with scale + depth */
+.btn {
+  position: relative;
+  overflow: hidden;
+  transform-origin: center;
+  will-change: transform, box-shadow;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97) translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition-duration: 50ms;
+}
+
+.btn.primary:active:not(:disabled) {
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.2),
+    0 0 12px var(--accent-glow);
+}
+
+/* Ripple effect for buttons */
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), 
+    rgba(255, 255, 255, 0.3) 0%, 
+    transparent 60%);
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.4s ease, transform 0.5s ease;
+  pointer-events: none;
+}
+
+.btn.rippling::before {
+  opacity: 1;
+  transform: scale(2.5);
+  transition: opacity 0.1s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Icon button specific interactions */
+.btn--icon:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.btn--icon:hover:not(:disabled) svg {
+  transform: scale(1.1);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+/* Danger button pulse on hover */
+.btn.danger:hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 var(--danger-subtle);
+  animation: danger-pulse 1s ease-out infinite;
+}
+
+@keyframes danger-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* ===========================================
+   List Entrance Animations
+   =========================================== */
+
+/* Staggered list entrance */
+.list-enter {
+  animation: list-item-enter 0.35s var(--ease-out) backwards;
+}
+
+@keyframes list-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Apply stagger delays to list children */
+.list--stagger > *:nth-child(1) { animation-delay: 0ms; }
+.list--stagger > *:nth-child(2) { animation-delay: 30ms; }
+.list--stagger > *:nth-child(3) { animation-delay: 60ms; }
+.list--stagger > *:nth-child(4) { animation-delay: 90ms; }
+.list--stagger > *:nth-child(5) { animation-delay: 120ms; }
+.list--stagger > *:nth-child(6) { animation-delay: 150ms; }
+.list--stagger > *:nth-child(7) { animation-delay: 180ms; }
+.list--stagger > *:nth-child(8) { animation-delay: 210ms; }
+.list--stagger > *:nth-child(9) { animation-delay: 240ms; }
+.list--stagger > *:nth-child(10) { animation-delay: 270ms; }
+.list--stagger > *:nth-child(n+11) { animation-delay: 300ms; }
+
+/* Slide in from left (for nav items) */
+.nav-enter {
+  animation: nav-item-enter 0.25s var(--ease-out) backwards;
+}
+
+@keyframes nav-item-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Card entrance with subtle bounce */
+.card-enter {
+  animation: card-enter 0.4s var(--ease-spring) backwards;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Grid stagger for cards/sessions */
+.grid--stagger > * {
+  animation: card-enter 0.4s var(--ease-spring) backwards;
+}
+
+.grid--stagger > *:nth-child(1) { animation-delay: 0ms; }
+.grid--stagger > *:nth-child(2) { animation-delay: 50ms; }
+.grid--stagger > *:nth-child(3) { animation-delay: 100ms; }
+.grid--stagger > *:nth-child(4) { animation-delay: 150ms; }
+.grid--stagger > *:nth-child(5) { animation-delay: 200ms; }
+.grid--stagger > *:nth-child(6) { animation-delay: 250ms; }
+.grid--stagger > *:nth-child(n+7) { animation-delay: 300ms; }
+
+/* ===========================================
+   Panel Expand/Collapse Animations
+   =========================================== */
+
+/* Accordion expand animation */
+.panel-expand {
+  animation: panel-expand 0.25s var(--ease-out);
+  transform-origin: top;
+}
+
+@keyframes panel-expand {
+  from {
+    opacity: 0;
+    transform: scaleY(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+  }
+}
+
+/* Accordion collapse animation */
+.panel-collapse {
+  animation: panel-collapse 0.2s var(--ease-in-out) forwards;
+  transform-origin: top;
+}
+
+@keyframes panel-collapse {
+  from {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scaleY(0.95) translateY(-8px);
+  }
+}
+
+/* Height transition for smooth expand/collapse */
+.expandable {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-normal) var(--ease-out);
+}
+
+.expandable--expanded {
+  grid-template-rows: 1fr;
+}
+
+.expandable > * {
+  overflow: hidden;
+}
+
+/* Chevron rotation for expandable sections */
+.expand-chevron {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.expand-chevron--expanded {
+  transform: rotate(90deg);
+}
+
+/* Modal/overlay entrance */
+.modal-enter {
+  animation: modal-enter 0.25s var(--ease-out);
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: fade-in 0.2s var(--ease-out);
+}
+
+/* Slide panel from right */
+.slide-panel-enter {
+  animation: slide-panel-enter 0.3s var(--ease-out);
+}
+
+@keyframes slide-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ===========================================
+   Focus Ring Animations
+   =========================================== */
+
+/* Animated focus ring */
+.focus-ring-animated:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring);
+  animation: focus-ring-pulse 0.3s var(--ease-out);
+}
+
+@keyframes focus-ring-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 2px var(--ring);
+  }
+  50% {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 6px var(--ring);
+  }
+  100% {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring);
+  }
+}
+
+/* Glow focus for important elements */
+.focus-glow:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-glow);
+  animation: focus-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes focus-glow-pulse {
+  0%, 100% { box-shadow: var(--focus-ring); }
+  50% { box-shadow: var(--focus-glow); }
+}
+
+/* ===========================================
+   Interactive States
+   =========================================== */
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.hover-lift:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Subtle scale on hover */
+.hover-scale {
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-scale:active {
+  transform: scale(0.98);
+}
+
+/* Interactive card with multiple states */
+.interactive-card {
+  transition: 
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.interactive-card:active {
+  transform: translateY(0) scale(0.995);
+  box-shadow: var(--shadow-sm);
+}
+
+.interactive-card:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring), var(--shadow-sm);
+}
+
+/* ===========================================
+   Loading State Transitions
+   =========================================== */
+
+/* Skeleton to content transition */
+.skeleton-fade-out {
+  animation: skeleton-fade-out 0.3s var(--ease-out) forwards;
+}
+
+@keyframes skeleton-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.content-fade-in {
+  animation: content-fade-in 0.3s var(--ease-out);
+}
+
+@keyframes content-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse loading indicator */
+.loading-pulse {
+  animation: loading-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Spinner */
+.loading-spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===========================================
+   Success/Error State Animations
+   =========================================== */
+
+/* Success checkmark animation */
+.success-pop {
+  animation: success-pop 0.4s var(--ease-spring);
+}
+
+@keyframes success-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Error shake animation */
+.error-shake {
+  animation: error-shake 0.5s var(--ease-out);
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+/* Subtle bounce for attention */
+.attention-bounce {
+  animation: attention-bounce 0.6s var(--ease-spring);
+}
+
+@keyframes attention-bounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+  50% { transform: translateY(-2px); }
+  70% { transform: translateY(-4px); }
+}
+
+/* ===========================================
+   Navigation Transitions
+   =========================================== */
+
+/* View transition */
+.view-enter {
+  animation: view-enter 0.3s var(--ease-out);
+}
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Tab indicator slide */
+.tab-indicator {
+  transition: left var(--duration-normal) var(--ease-out),
+              width var(--duration-normal) var(--ease-out);
+}
+
+/* Active nav item indicator */
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  transition: 
+    top var(--duration-normal) var(--ease-out),
+    height var(--duration-normal) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+/* ===========================================
+   Reduced Motion Preferences
+   =========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .list-enter,
+  .nav-enter,
+  .card-enter,
+  .panel-expand,
+  .panel-collapse,
+  .modal-enter,
+  .slide-panel-enter,
+  .success-pop,
+  .error-shake,
+  .attention-bounce,
+  .view-enter,
+  .loading-spinner {
+    animation: none !important;
+  }
+  
+  .hover-lift:hover,
+  .hover-scale:hover,
+  .interactive-card:hover {
+    transform: none !important;
+  }
+  
+  .expandable {
+    transition: none !important;
+  }
+  
+  .btn::before {
+    display: none;
+  }
+}

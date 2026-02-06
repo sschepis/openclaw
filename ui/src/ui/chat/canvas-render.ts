@@ -49,7 +49,8 @@ export function renderCanvasBlock(
 
     state.loading = true;
 
-    const htmlContent = buildCanvasHtml(block.code);
+    // For HTML blocks, use the code directly; for canvas blocks, wrap in canvas HTML
+    const htmlContent = block.isHtmlBlock ? block.code : buildCanvasHtml(block.code);
     const blob = new Blob([htmlContent], { type: "text/html" });
     const url = URL.createObjectURL(blob);
 

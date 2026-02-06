@@ -198,13 +198,13 @@ function hasOptions(text: string): boolean {
 }
 
 /**
- * Analyze conversation context and generate recommendations.
+ * Analyze conversation context and derive contextually relevant next-step recommendations.
  *
  * Design principles:
- * 1. Only show recommendations when there's high confidence they're useful
- * 2. Recommendations must be specific to the current conversation state
- * 3. No recommendations for empty conversations or generic states
- * 4. Prefer fewer, highly relevant recommendations over many generic ones
+ * 1. Analyze the user's request and AI's response to understand task context
+ * 2. Generate specific, actionable next steps based on current progress
+ * 3. Recommendations must be relevant to completing the overall task
+ * 4. No generic recommendations - each must be derived from conversation state
  */
 function generateRecommendations(params: {
   messages: unknown[];
@@ -231,14 +231,118 @@ function generateRecommendations(params: {
 
   const lastAssistantText = extractMessageText(lastAssistantMessage);
   const lastUserText = lastUserMessage ? extractMessageText(lastUserMessage) : "";
-  const lowerAssistantText = lastAssistantText.toLowerCase();
-  const lowerUserText = lastUserText.toLowerCase();
 
   const recommendations: TaskRecommendation[] = [];
 
-  // High-confidence: Assistant asked an explicit question requiring a response
-  if (hasExplicitQuestion(lastAssistantText)) {
-    recommendations.push(
+  // Extract task-specific context from the conversation
+  const taskContext = deriveTaskContext(lastUserText, lastAssistantText);
+
+  // Generate recommendations based on task context
+  const contextualRecs = generateContextualRecommendations(
+    taskContext,
+    lastAssistantText,
+    lastUserText,
+  );
+  recommendations.push(...contextualRecs);
+
+  // Sort by confidence then priority
+  recommendations.sort((a, b) => {
+    const confDiff = (b.confidence ?? 0) - (a.confidence ?? 0);
+    if (Math.abs(confDiff) > 0.05) {
+      return confDiff;
+    }
+    return b.priority - a.priority;
+  });
+
+  // Only return high-confidence recommendations (>= 0.7)
+  const highConfidenceRecs = recommendations.filter((r) => (r.confidence ?? 0) >= 0.7);
+
+  // Cap at limit
+  return highConfidenceRecs.slice(0, limit);
+}
+
+/**
+ * Derive task context by analyzing user request and AI response.
+ * This determines what kind of task is being worked on and its current state.
+ */
+function deriveTaskContext(
+  userText: string,
+  assistantText: string,
+): {
+  type: string;
+  state: string;
+  details: string[];
+} {
+  const userLower = userText.toLowerCase();
+  const assistantLower = assistantText.toLowerCase();
+
+  // Determine task type
+  let type = "general";
+  if (userLower.match(/\b(fix|debug|error|issue|problem|bug)\b/)) {
+    type = "debugging";
+  } else if (userLower.match(/\b(create|add|implement|build|make|write)\b/)) {
+    type = "creation";
+  } else if (userLower.match(/\b(update|modify|change|refactor|improve)\b/)) {
+    type = "modification";
+  } else if (userLower.match(/\b(explain|how|what|why|understand|learn)\b/)) {
+    type = "learning";
+  } else if (userLower.match(/\b(test|verify|check|validate)\b/)) {
+    type = "testing";
+  }
+
+  // Determine task state
+  let state = "initial";
+  if (hasExplicitQuestion(assistantText)) {
+    state = "awaiting_decision";
+  } else if (hasInProgressWork(assistantText)) {
+    state = "in_progress";
+  } else if (assistantLower.match(/\b(completed|done|finished|ready)\b/)) {
+    state = "completed";
+  } else if (hasErrorContext(assistantText, userText)) {
+    state = "blocked";
+  }
+
+  // Extract specific details
+  const details: string[] = [];
+
+  // Extract mentioned files/paths
+  const fileMatches = assistantText.match(
+    /`[^`]+\.(ts|js|tsx|jsx|py|java|go|rs|cpp|c|h|css|html|json|yaml|yml|md|txt)`/g,
+  );
+  if (fileMatches) {
+    details.push(...fileMatches.map((f) => f.replace(/`/g, "")));
+  }
+
+  // Extract mentioned commands
+  const commandMatches = assistantText.match(
+    /`(npm|pnpm|yarn|bun|git|cargo|go|python|pip|docker|kubectl)\s+[^`]+`/g,
+  );
+  if (commandMatches) {
+    details.push(...commandMatches.map((c) => c.replace(/`/g, "")));
+  }
+
+  // Extract mentioned functions/components
+  const codeMatches = assistantText.match(/`[A-Z][a-zA-Z0-9]+`/g);
+  if (codeMatches) {
+    details.push(...codeMatches.slice(0, 3).map((c) => c.replace(/`/g, "")));
+  }
+
+  return { type, state, details };
+}
+
+/**
+ * Generate contextually relevant recommendations based on task analysis.
+ */
+function generateContextualRecommendations(
+  context: { type: string; state: string; details: string[] },
+  assistantText: string,
+  userText: string,
+): TaskRecommendation[] {
+  const recs: TaskRecommendation[] = [];
+
+  // State-based recommendations
+  if (context.state === "awaiting_decision") {
+    recs.push(
       {
         id: "rec-yes",
         label: "Yes, proceed",
@@ -258,77 +362,158 @@ function generateRecommendations(params: {
         confidence: 0.9,
       },
     );
+    return recs; // High confidence, return immediately
   }
 
-  // High-confidence: Work is in progress with clear continuation
-  if (hasInProgressWork(lastAssistantText)) {
-    recommendations.push({
+  if (context.state === "in_progress") {
+    recs.push({
       id: "rec-continue",
       label: "Continue",
       prompt: "Continue with the next step",
       category: "action",
-      priority: 90,
+      priority: 95,
       icon: "arrow-right",
-      confidence: 0.85,
+      confidence: 0.9,
     });
   }
 
-  // Medium-high confidence: Actionable code present
-  if (hasActionableCode(lastAssistantText)) {
-    recommendations.push({
-      id: "rec-apply-code",
-      label: "Apply changes",
-      prompt: "Apply these changes to the codebase",
-      category: "action",
-      priority: 88,
-      icon: "play",
-      confidence: 0.8,
-    });
-  }
-
-  // Medium-high confidence: Error context detected
-  if (hasErrorContext(lowerAssistantText, lowerUserText)) {
-    // Only add if we don't already have high-confidence recommendations
-    if (recommendations.length < 2) {
-      recommendations.push({
-        id: "rec-fix",
-        label: "Fix this",
-        prompt: "Please fix this issue",
+  // Task-type-based recommendations
+  if (context.type === "creation") {
+    // For creation tasks, suggest testing or documentation
+    if (hasActionableCode(assistantText)) {
+      recs.push({
+        id: "rec-test",
+        label: "Add tests",
+        prompt: "Add unit tests for this implementation",
         category: "action",
         priority: 85,
-        icon: "wrench",
-        confidence: 0.75,
+        icon: "check-circle",
+        confidence: 0.85,
+      });
+      if (context.state !== "in_progress") {
+        recs.push({
+          id: "rec-docs",
+          label: "Add documentation",
+          prompt: "Add documentation and usage examples",
+          category: "action",
+          priority: 80,
+          icon: "book",
+          confidence: 0.8,
+        });
+      }
+    }
+  }
+
+  if (context.type === "debugging") {
+    // For debugging tasks, suggest verification or related fixes
+    if (context.state === "completed") {
+      recs.push({
+        id: "rec-verify",
+        label: "Verify fix",
+        prompt: "Verify that the fix works correctly",
+        category: "action",
+        priority: 90,
+        icon: "check-circle",
+        confidence: 0.85,
+      });
+    } else {
+      recs.push({
+        id: "rec-investigate",
+        label: "Investigate further",
+        prompt: "Investigate the root cause more deeply",
+        category: "explore",
+        priority: 85,
+        icon: "search",
+        confidence: 0.8,
       });
     }
   }
 
-  // Medium confidence: Multiple options presented
-  if (hasOptions(lastAssistantText) && recommendations.length < 2) {
-    recommendations.push({
-      id: "rec-compare",
-      label: "Compare & recommend",
-      prompt: "Compare these options and recommend the best one for my use case",
+  if (context.type === "modification") {
+    // For modification tasks, suggest testing changes
+    if (hasActionableCode(assistantText)) {
+      recs.push({
+        id: "rec-test-changes",
+        label: "Test changes",
+        prompt: "Test the modifications to ensure they work correctly",
+        category: "action",
+        priority: 88,
+        icon: "play",
+        confidence: 0.85,
+      });
+    }
+  }
+
+  if (context.type === "learning") {
+    // For learning tasks, suggest practical application or deeper exploration
+    recs.push({
+      id: "rec-example",
+      label: "Show example",
+      prompt: "Show me a practical example of using this",
       category: "explore",
-      priority: 80,
+      priority: 85,
+      icon: "code",
+      confidence: 0.8,
+    });
+    if (hasActionableCode(assistantText)) {
+      recs.push({
+        id: "rec-try",
+        label: "Try it out",
+        prompt: "Help me try this out in my project",
+        category: "action",
+        priority: 82,
+        icon: "play",
+        confidence: 0.78,
+      });
+    }
+  }
+
+  // Content-based recommendations
+  if (hasActionableCode(assistantText) && context.type !== "learning") {
+    // Only add if not already added
+    if (!recs.some((r) => r.id === "rec-test" || r.id === "rec-test-changes")) {
+      recs.push({
+        id: "rec-apply",
+        label: "Apply changes",
+        prompt: "Apply these changes to the codebase",
+        category: "action",
+        priority: 87,
+        icon: "play",
+        confidence: 0.82,
+      });
+    }
+  }
+
+  // If multiple options were presented
+  if (hasOptions(assistantText) && recs.length < 2) {
+    recs.push({
+      id: "rec-recommend",
+      label: "Recommend best option",
+      prompt: "Which option would you recommend for my use case and why?",
+      category: "explore",
+      priority: 83,
       icon: "scale",
-      confidence: 0.7,
+      confidence: 0.75,
     });
   }
 
-  // Sort by confidence then priority, limit results
-  recommendations.sort((a, b) => {
-    const confDiff = (b.confidence ?? 0) - (a.confidence ?? 0);
-    if (Math.abs(confDiff) > 0.05) {
-      return confDiff;
+  // Detail-based recommendations (file-specific next steps)
+  if (context.details.length > 0 && recs.length < 3) {
+    const hasFiles = context.details.some((d) => d.match(/\.(ts|js|tsx|jsx|py|java|go|rs|cpp)/));
+    if (hasFiles && context.type === "modification") {
+      recs.push({
+        id: "rec-related",
+        label: "Check related files",
+        prompt: "Check if any related files need similar updates",
+        category: "explore",
+        priority: 75,
+        icon: "files",
+        confidence: 0.72,
+      });
     }
-    return b.priority - a.priority;
-  });
+  }
 
-  // Only return recommendations with sufficient confidence (>= 0.7)
-  const highConfidenceRecs = recommendations.filter((r) => (r.confidence ?? 0) >= 0.7);
-
-  // Cap at limit
-  return highConfidenceRecs.slice(0, limit);
+  return recs;
 }
 
 export const recommendationsHandlers: GatewayRequestHandlers = {

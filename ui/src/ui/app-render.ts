@@ -59,6 +59,25 @@ import {
 } from "./controllers/secrets";
 import { deleteSession, loadSessions, patchSession } from "./controllers/sessions";
 import {
+  closeEditor,
+  closeNewFileDialog,
+  closeRenameDialog,
+  createDirectory,
+  createFile,
+  deleteFile,
+  loadFiles,
+  openFile,
+  openNewFileDialog,
+  openRenameDialog,
+  saveFile,
+  submitNewFileDialog,
+  submitRenameDialog,
+  toggleDirectory,
+  updateEditorContent,
+  updateNewFileDialogName,
+  updateRenameDialogName,
+} from "./controllers/files";
+import {
   installSkill,
   loadSkills,
   saveSkillApiKey,
@@ -81,6 +100,8 @@ import { renderLogs } from "./views/logs";
 import { renderNodes } from "./views/nodes";
 import { renderOverview } from "./views/overview";
 import { renderSecrets } from "./views/secrets";
+import { renderFiles } from "./views/files";
+import { renderAddAgentModal } from "./views/add-agent-modal";
 import { renderSessionDeleteConfirm } from "./views/session-delete-confirm";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
@@ -407,6 +428,20 @@ export function renderApp(state: AppViewState) {
                 },
                 expandedSummaries: state.activitiesExpandedSummaries,
                 onToggleSummary: (sessionKey) => state.handleToggleActivitySummary(sessionKey),
+                // Model selection - pass available models from debug state
+                availableModels: Array.isArray(state.debugModels)
+                  ? (state.debugModels as Array<{ id: string; provider: string }>)
+                  : [],
+                onModelChange: (sessionKey, model) =>
+                  state.handleActivityModelChange(sessionKey, model),
+                // Pause/Resume
+                onPause: (sessionKey) => state.handleActivityPause(sessionKey),
+                onResume: (sessionKey) => state.handleActivityResume(sessionKey),
+                // Delete
+                onDelete: (sessionKey) => state.handleActivityDelete(sessionKey),
+                // Send message to chat
+                onSendMessage: (sessionKey, message) =>
+                  state.handleActivitySendMessage(sessionKey, message),
               })
             : nothing
         }
@@ -427,6 +462,10 @@ export function renderApp(state: AppViewState) {
                 channelMeta: state.channelsSnapshot?.channelMeta ?? [],
                 runsJobId: state.cronRunsJobId,
                 runs: state.cronRuns,
+                filter: state.cronFilter,
+                view: state.cronView,
+                expandedJob: state.cronExpandedJob,
+                onFilterChange: (next) => (state.cronFilter = next),
                 onFormChange: (patch) => (state.cronForm = { ...state.cronForm, ...patch }),
                 onRefresh: () => state.loadCron(),
                 onAdd: () =>
@@ -437,7 +476,12 @@ export function renderApp(state: AppViewState) {
                 onToggle: (job, enabled) => toggleCronJob(state, job, enabled),
                 onRun: (job) => runCronJob(state, job),
                 onRemove: (job) => removeCronJob(state, job),
-                onLoadRuns: (jobId) => loadCronRuns(state, jobId),
+                onLoadRuns: (jobId) => {
+                  loadCronRuns(state, jobId);
+                  state.cronView = "runs";
+                },
+                onViewChange: (view) => (state.cronView = view),
+                onJobExpand: (jobId) => (state.cronExpandedJob = jobId),
               })
             : nothing
         }
@@ -461,6 +505,44 @@ export function renderApp(state: AppViewState) {
                     void saveSecret(state, state.secretsForm.key, state.secretsForm.value);
                   }
                 },
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "files"
+            ? renderFiles({
+                loading: state.filesLoading,
+                tree: state.filesTree ?? [],
+                error: state.filesError,
+                selectedPath: state.filesSelectedPath,
+                editorPath: state.filesEditorPath,
+                editorContent: state.filesEditorContent,
+                editorLoading: state.filesEditorLoading,
+                editorSaving: state.filesEditorSaving,
+                editorDirty: state.filesEditorDirty,
+                busy: state.filesBusy,
+                newDialog: state.filesNewDialog,
+                renameDialog: state.filesRenameDialog,
+                onRefresh: () => loadFiles(state),
+                onToggleDirectory: (path) => toggleDirectory(state, path),
+                onSelectFile: (path) => {
+                  state.filesSelectedPath = path;
+                },
+                onOpenFile: (path) => openFile(state, path),
+                onCloseEditor: () => closeEditor(state),
+                onEditorChange: (content) => updateEditorContent(state, content),
+                onSaveFile: () => saveFile(state),
+                onDeleteFile: (path) => deleteFile(state, path),
+                onNewFile: (parentPath) => openNewFileDialog(state, parentPath, "file"),
+                onNewFolder: (parentPath) => openNewFileDialog(state, parentPath, "directory"),
+                onRename: (path) => openRenameDialog(state, path),
+                onNewDialogClose: () => closeNewFileDialog(state),
+                onNewDialogNameChange: (name) => updateNewFileDialogName(state, name),
+                onNewDialogSubmit: () => submitNewFileDialog(state),
+                onRenameDialogClose: () => closeRenameDialog(state),
+                onRenameDialogNameChange: (name) => updateRenameDialogName(state, name),
+                onRenameDialogSubmit: () => submitRenameDialog(state),
               })
             : nothing
         }
@@ -615,6 +697,16 @@ export function renderApp(state: AppViewState) {
                   void refreshChatAvatar(state);
                   // Note: recommendations are fetched after loadChatHistory completes (in the controller)
                 },
+                // Model/provider selection
+                availableModels: Array.isArray(state.debugModels)
+                  ? (state.debugModels as Array<{ id: string; provider: string }>)
+                  : [],
+                currentModel:
+                  state.sessionsResult?.sessions?.find((s) => s.key === state.sessionKey)?.model ??
+                  null,
+                onModelChange: (modelId) => {
+                  void state.handleSessionsPatch(state.sessionKey, { model: modelId });
+                },
                 thinkingLevel: state.chatThinkingLevel,
                 showThinking,
                 thinkingState: state.thinkingState,
@@ -707,6 +799,16 @@ export function renderApp(state: AppViewState) {
                 onSlashAutocompleteSelect: (suggestion: any) =>
                   state.handleSlashAutocompleteSelect(suggestion),
                 onSlashAutocompleteClose: () => state.handleSlashAutocompleteClose(),
+                // Context sidebar (right-hand panel) props
+                contextSidebarOpen: state.contextSidebarOpen,
+                onToggleContextSidebar: () => state.handleToggleContextSidebar(),
+                visualizations: state.visualizations ?? [],
+                selectedVisualization: state.selectedVisualization ?? null,
+                onSelectVisualization: (viz) => state.handleSelectVisualization(viz),
+                onOpenVisualization: (viz) => state.handleOpenVisualization(viz),
+                cronJobs: state.cronJobs ?? [],
+                onToggleCronJob: (job, enabled) => toggleCronJob(state, job, enabled),
+                onRunCronJob: (job) => runCronJob(state, job),
               })
             : nothing
         }
@@ -801,6 +903,7 @@ export function renderApp(state: AppViewState) {
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
       ${renderSessionDeleteConfirm(state)}
+      ${renderAddAgentModal(state)}
       ${renderChatSettings(state)}
       <command-palette
         .open=${state.commandPaletteOpen}

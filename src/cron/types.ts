@@ -53,6 +53,15 @@ export type CronIsolation = {
   postToMainMaxChars?: number;
 };
 
+export type CronAgentState = {
+  agentId: string;
+  status: "idle" | "running" | "ok" | "error";
+  startedAtMs?: number;
+  completedAtMs?: number;
+  error?: string;
+  durationMs?: number;
+};
+
 export type CronJobState = {
   nextRunAtMs?: number;
   runningAtMs?: number;
@@ -60,11 +69,15 @@ export type CronJobState = {
   lastStatus?: "ok" | "error" | "skipped";
   lastError?: string;
   lastDurationMs?: number;
+  /** Per-agent state for multi-agent tasks */
+  agentStates?: CronAgentState[];
 };
 
 export type CronJob = {
   id: string;
   agentId?: string;
+  /** Additional agents that collaborate on this task */
+  secondaryAgents?: string[];
   name: string;
   description?: string;
   enabled: boolean;
